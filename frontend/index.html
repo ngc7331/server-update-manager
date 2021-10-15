@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8">
+	    <title>xu_zh's Server Manager</title>
+        <link rel="stylesheet" href="css/app.css">
+        <script src="https://cdn.jsdelivr.net/npm/appwrite@3.2.0"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vue@3.2.11/dist/vue.global.prod.js"></script>
+        <!--<script src="https://cdn.jsdelivr.net/npm/vue@3.2.11"></script>-->
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10"></script>
+    </head>
+    <body>
+        <div id="app">
+            <div id="login">
+                <ul>
+                    <li><input type="email" v-model="email" v-bind:disabled="loggedin" placeholder="email"></li>
+                    <li><input type="password" v-model="password" v-bind:disabled="loggedin" placeholder="password"></li>
+                    <li>Save session:<input type="checkbox" v-model="save_session"></li>
+                    <li>
+                        <button v-on:click="createSession" v-bind:disabled="loggedin">Login</button>
+                        <button v-on:click="deleteSession" v-bind:disabled="!loggedin">Logout</button>
+                    </li>
+                </ul>
+            </div>
+            <div id="listbox">
+                <button v-on:click="refreshDocuments" v-bind:disabled="!loggedin">Refresh</button>
+                <button v-on:click="saveDocument" v-bind:disabled="!loggedin">Save</button>
+                <table id="list">
+                    <tr><th width="15%">Name</th><th width="5%">Authorize?</th><th>Status</th></tr>
+                    <tr v-for="document in documents">
+                        <td>{{document.name}}</td>
+                        <td><input type="checkbox" v-model="document.authorized" v-bind:disabled="document.success"></td>
+                        <td>
+                            <table v-if="!document.success" width="100%" class="document">
+                                <tr><th width="40%">Name</th><th width="5%">Hold?</th><th>New Version</th><th>Old Version</th></tr>
+                                <tr v-for="prog in document.progs">
+                                    <td>{{prog.name}}</td>
+                                    <td><input type="checkbox" v-model="prog.hold"></td>
+                                    <td>{{prog.version[0]}}</td>
+                                    <td>{{prog.version[1]}}</td>
+                                </tr>
+                            </table>
+                            <span v-else>
+                                Success!
+                                <p v-if="document.all_done">
+                                    All Done!
+                                </p>
+                                <p v-if="!document.all_done">
+                                    <p v-if="!document.all_done&&document.need_autoremove">
+                                        Autoremove?
+                                        <input type="checkbox" v-model="document.autoremove">
+                                        (this function is still under development)
+                                    </p>
+                                    <p v-if="!document.all_done&&!document.need_autoremove">No need for autoremove</p>
+                                </p>
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+        <script src="js/app.js"></script>
+    </body>
+</html>
+

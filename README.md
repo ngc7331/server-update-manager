@@ -1,0 +1,1 @@
+一个基于[Appwrite](https://appwrite.io/)、Python、Vue.js的服务器更新管理器

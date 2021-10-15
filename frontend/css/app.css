@@ -1,0 +1,57 @@
+#login {
+    margin: 2vmin 10vmin;
+    padding: 4vmin;
+    float: left;
+    position: relative;
+    font-size: large;
+}
+#login ul {
+    list-style: none;
+    line-height: normal;
+}
+#login li {
+    text-align: right;
+}
+
+#listbox {
+    float: left;
+    position: relative;
+    margin: 2vmin 10vmin;
+    padding: 4vmin;
+    width: 80%;
+}
+
+#list {
+    width: 100%;
+}
+#list td {
+    vertical-align: text-top;
+    padding: 9px 9px 9px 9px;
+    border: 1px solid #aaa;
+}
+#list th {
+    vertical-align: baseline;
+    padding: 10px 10px 10px 10px;
+    background-color: #3F3F3F;
+    border: 1px solid #3F3F3F;
+    text-align: left;
+    color: #fff;
+}
+
+#list .document {
+    padding: 0;
+    border-collapse: collapse;
+}
+
+#list .document th {
+    padding: 2px;
+    color: #3F3F3F;
+    border: 1px solid #3F3F3F;
+    background-color: #fff;
+}
+
+#list .document td {
+    padding: 2px;
+    border: 1px solid #3F3F3F;
+    background-color: #fff;
+}
