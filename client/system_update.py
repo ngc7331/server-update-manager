@@ -141,6 +141,7 @@ def AptHold() -> None:
     logger.info('set apt hold')
     hold_list = popen('apt-mark showhold').read().decode()
     for prog in progs:
+        prog = json.loads(prog)
         if (prog['name'] in hold_list and not prog['hold']):
             logger.info('Unhold %s, it will be upgraded from %s to %s' % (
                 prog['name'], prog['version'][1], prog['version'][0]))
