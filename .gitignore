@@ -1,6 +1,7 @@
 
-backend/system_update
+client/system_update/conf.json
+client/system_update/*.log
 test.js
 test.py
 test_server.py
-backend/modules/__pycache__
+client/modules/__pycache__

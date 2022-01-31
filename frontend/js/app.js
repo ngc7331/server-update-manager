@@ -3,6 +3,14 @@ function isNull(v) {
     else return false;
 }
 
+function stringify(v) {
+    var res = [];
+    for (var i=0; i<v.length; i++) {
+        res.push(JSON.stringify(v[i]));
+    }
+    return res;
+}
+
 // Edit these before use
 const ENDPOINT = ""
 const PROJECT_ID = ""
@@ -56,7 +64,7 @@ Vue.createApp({
                 app.session_id = response['$id'];
                 app.loggedin = true;
             }, function (error) {
-                Swal.fire('Unknown Appwrite Error', error, 'error');
+                Swal.fire('Login failed: email or password invalid.', error, 'error');
                 console.log(error); // Failure
             });
         },
@@ -85,7 +93,7 @@ Vue.createApp({
                     app.loggedin = true;
                 }, function (error) {
                     console.log(error); // Failure
-                    Swal.fire('Unknown Appwrite Error', error, 'error');
+                    Swal.fire('Login failed: session expired.', error, 'error');
                     app.session_id = null;
                     app.loggedin = false;
                 });
@@ -104,7 +112,7 @@ Vue.createApp({
                     var doc = response['documents'][i];
                     var progs = [];
                     for (var j=0; j<doc['progs'].length; j++) {
-                        var prog = doc['progs'][j]
+                        var prog = JSON.parse(doc['progs'][j])
                         progs.push({
                             "name": prog['name'],
                             "hold": prog['hold'],
@@ -131,8 +139,12 @@ Vue.createApp({
             var app = this;
             var error_occured = false;
             for(var i=0; i<app.documents.length; i++) {
-                var document = app.documents[i];
-                var id = document.id;
+                var doc = app.documents[i];
+                var id = doc.id;
+                var document = {
+                    "authorized": doc['authorized'],
+                    "progs": stringify(doc["progs"])
+                };
                 //delete document.id;
                 let promise = app.sdk.database.updateDocument(COLLECTION_ID, id, document);
                 promise.then(function (response) {

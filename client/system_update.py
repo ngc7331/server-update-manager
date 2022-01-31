@@ -1,13 +1,16 @@
-import os
-import sys
-import json
-import time
-import logging
-from modules.popen import popen
-from modules.Logger import Logger
+import appwrite.exception
 from appwrite.client import Client
 from appwrite.services.database import Database
 from appwrite.services.storage import Storage
+import json
+import logging
+from modules.popen import popen
+from modules.Logger import Logger
+import os
+import random
+import sys
+import time
+from urllib3 import disable_warnings
 
 def Green(msg:str) -> str:
     return '\033[32m%s\033[0m' % msg
@@ -76,10 +79,11 @@ class API():
             return self.waitUntilAuthorized(name, interval, retries+1, max_retries)
         return True
 
-    def Upload(self, filepath: str):
+    def Upload(self, filepath:str, fixed_id:str = ''):
         if (not os.path.exists(filepath)):
             return None
         return self._storage.create_file(
+            filepath.split('/')[-1].split('.')[0] + fixed_id,
             open(filepath, 'rb'),
             self._permission, self._permission
         )
@@ -107,16 +111,14 @@ def AptUpdate() -> bool:
             continue
         # line = '{prog}/{source} {newversion} {architecture} [upgradable from: {oldversion}]'
         prog = line.split('/')[0]
-        progs.append(
-            {
-                'name': prog,
-                'hold': prog in hold_list,
-                'version': [
-                    line.split(' ')[1], #新版本
-                    line.split(' ', 3)[3].replace('[可从该版本升级：','').replace('[upgradable from: ','').replace(']\n','') #旧版本
-                ]
-            }
-        )
+        progs.append(json.dumps({
+            'name': prog,
+            'hold': prog in hold_list,
+            'version': [
+                line.split(' ')[1], #新版本
+                line.split(' ', 3)[3].replace('[可从该版本升级：','').replace('[upgradable from: ','').replace(']\n','') #旧版本
+            ]
+        }))
         line = '[Hold] %s' % line if (prog in hold_list) else line
         msg += line
     logger.info(msg)
@@ -177,10 +179,16 @@ def AptAutoremove() -> None:
     return None
 
 def exit() -> None:
-    api.Upload(logfile)
+    try:
+        api.Upload(logfile)
+    except appwrite.exception.AppwriteException:
+        api.Upload(logfile, "_"+str(random.randint(100000, 999999)))
     sys.exit()
 
 if (__name__ == '__main__'):
+    '''禁用urllib3警告'''
+    disable_warnings()
+
     '''检查环境'''
     logging.info('Check environment...')
     try:
