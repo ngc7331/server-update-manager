@@ -1,4 +1,3 @@
-import appwrite.exception
 from appwrite.client import Client
 from appwrite.services.database import Database
 from appwrite.services.storage import Storage
@@ -7,7 +6,6 @@ import logging
 from modules.popen import popen
 from modules.Logger import Logger
 import os
-import random
 import sys
 import time
 from urllib3 import disable_warnings
@@ -51,7 +49,7 @@ class API():
             )
         else:
             result = self._database.create_document(
-                self._collection_id, data,
+                self._collection_id, 'unique()', data,
                 self._permission, self._permission
             )
             self._document_id = result['$id']
@@ -79,12 +77,11 @@ class API():
             return self.waitUntilAuthorized(name, interval, retries+1, max_retries)
         return True
 
-    def Upload(self, filepath:str, fixed_id:str = ''):
+    def Upload(self, filepath:str):
         if (not os.path.exists(filepath)):
             return None
         return self._storage.create_file(
-            filepath.split('/')[-1].split('.')[0] + fixed_id,
-            open(filepath, 'rb'),
+            'unique()', open(filepath, 'rb'),
             self._permission, self._permission
         )
 
@@ -180,10 +177,7 @@ def AptAutoremove() -> None:
     return None
 
 def exit() -> None:
-    try:
-        api.Upload(logfile)
-    except appwrite.exception.AppwriteException:
-        api.Upload(logfile, "_"+str(random.randint(100000, 999999)))
+    api.Upload(logfile)
     sys.exit()
 
 if (__name__ == '__main__'):
