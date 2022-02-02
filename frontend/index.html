@@ -1,3 +1,7 @@
+<!--
+version 2022.02.02.1
+-->
+
 <!DOCTYPE html>
 <html lang="zh-cn">
     <head>
@@ -26,33 +30,43 @@
                 <button v-on:click="refreshDocuments" v-bind:disabled="!loggedin">Refresh</button>
                 <button v-on:click="saveDocument" v-bind:disabled="!loggedin">Save</button>
                 <table id="list">
-                    <tr><th width="15%">Name</th><th width="5%">Authorize?</th><th>Status</th></tr>
+                    <tr><th width="10%">Name</th><th width="10%">Date</th><th width="5%">Authorize?</th><th>Status</th></tr>
                     <tr v-for="document in documents">
                         <td>{{document.name}}</td>
-                        <td><input type="checkbox" v-model="document.authorized" v-bind:disabled="document.success"></td>
+                        <td>{{document.date}}</td>
                         <td>
-                            <table v-if="!document.success" width="100%" class="document">
-                                <tr><th width="40%">Name</th><th width="5%">Hold?</th><th>New Version</th><th>Old Version</th></tr>
-                                <tr v-for="prog in document.progs">
-                                    <td>{{prog.name}}</td>
-                                    <td><input type="checkbox" v-model="prog.hold"></td>
-                                    <td>{{prog.version[0]}}</td>
-                                    <td>{{prog.version[1]}}</td>
-                                </tr>
-                            </table>
-                            <span v-else>
+                            <span v-if="document.status==0 || document.status==1">
+                                Upgrade?
+                                <input type="checkbox" v-model="document.status" false-value="0" true-value="1">
+                            </span>
+                            <span v-if="document.status==2 || document.status==3">
+                                Autoremove?
+                                <input type="checkbox" v-model="document.status" false-value="2" true-value="3">
+                            </span>
+                        </td>
+                        <td>
+                            <span v-if="document.status==-1">
+                                Error: {{document.msg}}
+                            </span>
+                            <span v-if="document.status==0 || document.status==1">
+                                <table width="100%" class="document">
+                                    <tr><th width="40%">Name</th><th width="5%">Hold?</th><th>New Version</th><th>Old Version</th></tr>
+                                    <tr v-for="prog in document.progs">
+                                        <td>{{prog.name}}</td>
+                                        <td><input type="checkbox" v-model="prog.hold"></td>
+                                        <td>{{prog.version[0]}}</td>
+                                        <td>{{prog.version[1]}}</td>
+                                    </tr>
+                                </table>
+                            </span>
+                            <span v-if="document.status==2 || document.status==3">
                                 Success!
-                                <p v-if="document.all_done">
-                                    All Done!
-                                </p>
-                                <p v-if="!document.all_done">
-                                    <p v-if="!document.all_done&&document.need_autoremove">
-                                        Autoremove?
-                                        <input type="checkbox" v-model="document.autoremove">
-                                        (this function is still under development)
-                                    </p>
-                                    <p v-if="!document.all_done&&!document.need_autoremove">No need for autoremove</p>
-                                </p>
+                            </span>
+                            <span v-if="document.status==4">
+                                All Done!
+                            </span>
+                            <span v-if="document.status==5">
+                                Up to date
                             </span>
                         </td>
                     </tr>

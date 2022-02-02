@@ -1,3 +1,7 @@
+'''
+version 2022.02.02.1
+'''
+
 from appwrite.client import Client
 from appwrite.services.database import Database
 from appwrite.services.storage import Storage
@@ -64,17 +68,23 @@ class API():
         self._document_id = None
         return result
 
-    def checkAuthorization(self, name:str = 'authorized') -> bool:
-        document = self._database.get_document(self._collection_id, self._document_id)
-        return document[name]
+    def error(self, msg:str) -> None:
+        self.Post({
+            'status': -1,
+            'msg': msg
+        })
 
-    def waitUntilAuthorized(self, name:str = 'authorized', interval:float = 300, retries:int = 0, max_retries:int = 288) -> bool:
+    def checkAuthorization(self) -> bool:
+        document = self._database.get_document(self._collection_id, self._document_id)
+        return document['status']
+
+    def waitUntilAuthorized(self, target_status:int, interval:float = 300, retries:int = 0, max_retries:int = 288) -> bool:
         if (retries > max_retries):
             return False
-        if (not self.checkAuthorization(name)):
+        if (self.checkAuthorization() != target_status):
             self._logger.debug('not authorized, sleep %f seconds' % interval)
             time.sleep(interval)
-            return self.waitUntilAuthorized(name, interval, retries+1, max_retries)
+            return self.waitUntilAuthorized(target_status, interval, retries+1, max_retries)
         return True
 
     def Upload(self, filepath:str):
@@ -123,11 +133,8 @@ def AptUpdate() -> bool:
     result = api.Post({
         'name': api.name,
         'progs': progs,
-        'authorized': False,
-        'success': False,
-        'autoremove': False,
-        'need_autoremove': False,
-        'all_done': False
+        'status': 0,
+        'date': time.strftime('%Y-%m-%d', time.localtime(time.time()))
     })
     document_id = result['$id']
     logger.debug(result)
@@ -161,9 +168,7 @@ def AptUpgrade() -> bool:
     os.remove('system_update.tmp')
     logger.info('Post API')
     api.Post({
-        'success': True,
-        'need_autoremove': need_autoremove,
-        'all_done': not need_autoremove
+        'status': 2 if need_autoremove else 4
     })
     return need_autoremove
 
@@ -172,7 +177,7 @@ def AptAutoremove() -> None:
     popen('apt autoremove -y')
     logger.info('Post API')
     api.Post({
-        'all_done': True
+        'status': 4
     })
     return None
 
@@ -215,16 +220,22 @@ if (__name__ == '__main__'):
     up_to_date = False
     progs = []
     if(not AptUpdate()):
+        api.Post({
+            'status': 5,
+            'date': time.strftime('%Y-%m-%d', time.localtime(time.time()))
+        })
         logger.info('Up to date, exit...')
         exit()
-    if(not api.waitUntilAuthorized()):
+    if(not api.waitUntilAuthorized(1)):
+        api.error('Not authorize with 24 hours')
         logger.critical('Not authorize with 24 hours, exit...')
         exit()
     AptHold()
     if (not AptUpgrade()):
         logger.info('No need for autoremove, exit...')
         exit()
-    if(not api.waitUntilAuthorized('autoremove')):
+    if(not api.waitUntilAuthorized(3)):
+        api.error('Not authorize with 24 hours')
         logger.critical('Not authorize with 24 hours, exit...')
         exit()
     AptAutoremove()

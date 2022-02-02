@@ -31,6 +31,16 @@
 |                 | -------------------------> |           |
 -------------------                            -------------
 ```
+### 状态
+| 状态码 | 解释 |
+| ----- | --- |
+| -1 | 出错 |
+| 0 | 等待升级授权 |
+| 1 | 升级已授权 |
+| 2 | 等待autoremove授权 |
+| 3 | autoremove已授权 |
+| 4 | 全部完成 |
+| 5 | 未发现可用升级 |
 
 ## 使用方法
 ### 在服务器上安装appwrite，请参考[官方文档](https://appwrite.io/docs/installation)
@@ -43,11 +53,7 @@
     | id | string |
     | name | string |
     | progs | string[] |
-    | all_done | boolean |
-    | authorized | boolean |
-    | autoremove | boolean |
-    | need_autoremove | boolean |
-    | success | boolean |
+    | status | integer |
 4. 在`Develop-Users`中新建用户，ID、名称、邮箱和密码均任意设置，该邮箱和密码用于前端登录，请保证其具备一定的复杂度。记住用户ID。
 5. 在`Manage-API Keys`中新建API Key，名称任取，授予以下权限。创建后点击show secret记住生成的API Key：
     - `collections.read`
@@ -76,3 +82,6 @@ const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 ```
 2. 使用pip安装依赖：`pip3 install -r requirements.txt`（其实就一个appwrite sdk）
 3. 尝试运行`python3 system_update.py`
+
+## Changelog
+- 2022.02.02 将状态整合到一个integer变量中，小改前端样式

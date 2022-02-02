@@ -1,3 +1,7 @@
+/*
+version 2022.02.02.1
+*/
+
 function isNull(v) {
     if (v===null || v === 'null') return true;
     else return false;
@@ -61,7 +65,7 @@ Vue.createApp({
             var app = this;
             let promise = app.sdk.account.createSession(app.email, app.password);
             promise.then(function (response) {
-                app.session_id = response['$id'];
+                app.session_id = response.$id;
                 app.loggedin = true;
             }, function (error) {
                 Swal.fire('Login failed: email or password invalid.', error, 'error');
@@ -108,26 +112,24 @@ Vue.createApp({
             let promise = app.sdk.database.listDocuments(COLLECTION_ID);
             promise.then(function (response) {
                 console.log(response);
-                for (var i=0; i<response['sum']; i++) {
-                    var doc = response['documents'][i];
+                for (var i=0; i<response.sum; i++) {
+                    var doc = response.documents[i];
                     var progs = [];
-                    for (var j=0; j<doc['progs'].length; j++) {
-                        var prog = JSON.parse(doc['progs'][j])
+                    for (var j=0; j<doc.progs.length; j++) {
+                        var prog = JSON.parse(doc.progs[j])
                         progs.push({
-                            "name": prog['name'],
-                            "hold": prog['hold'],
-                            "version": prog['version']
+                            "name": prog.name,
+                            "hold": prog.hold,
+                            "version": prog.version
                         });
                     }
                     app.documents.push({
-                        "name": doc['name'],
-                        "id": doc['$id'],
-                        "authorized": doc['authorized'],
-                        "success": doc['success'],
-                        "autoremove": doc['autoremove'],
-                        "need_autoremove": doc['need_autoremove'],
-                        "all_done": doc['all_done'],
-                        "progs": progs
+                        "id": doc.$id,
+                        "name": doc.name,
+                        "date": doc.date,
+                        "status": doc.status,
+                        "progs": progs,
+                        "msg": doc.msg
                     });
                 }
             }, function (error) {
@@ -142,9 +144,8 @@ Vue.createApp({
                 var doc = app.documents[i];
                 var id = doc.id;
                 var document = {
-                    "authorized": doc['authorized'],
-                    "autoremove": doc['autoremove'],
-                    "progs": stringify(doc["progs"])
+                    "status": doc.status,
+                    "progs": stringify(doc.progs)
                 };
                 //delete document.id;
                 let promise = app.sdk.database.updateDocument(COLLECTION_ID, id, document);
