@@ -143,6 +143,7 @@ Vue.createApp({
                 var id = doc.id;
                 var document = {
                     "authorized": doc['authorized'],
+                    "autoremove": doc['autoremove'],
                     "progs": stringify(doc["progs"])
                 };
                 //delete document.id;
