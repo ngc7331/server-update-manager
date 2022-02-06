@@ -55,7 +55,6 @@
     | Attribute ID | Type |
     | ------------ | ---- |
     | status | integer |
-    | id | string |
     | name | string |
     | time | string |
     | msg | string |
