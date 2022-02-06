@@ -1,6 +1,8 @@
 /*
-version 2022.02.02.1
+version 2022.02.06.1
 */
+
+import { ENDPOINT, PROJECT_ID, COLLECTION_ID } from './conf.js'
 
 function isNull(v) {
     if (v===null || v === 'null') return true;
@@ -15,11 +17,6 @@ function stringify(v) {
     return res;
 }
 
-// Edit these before use
-const ENDPOINT = ""
-const PROJECT_ID = ""
-const COLLECTION_ID = ""
-
 Vue.createApp({
     data() {
         return {
@@ -28,10 +25,13 @@ Vue.createApp({
             loggedin: false,
             session_id: null,
             save_session: true,
+            autorefresh: true,
             documents: [],
+            processing_msg: ["update", "hold", "upgrade", "autoremove"]
         }
     },
     mounted() {
+        var app = this;
         const sdk = new Appwrite();
         sdk
             .setEndpoint(ENDPOINT)
@@ -41,6 +41,9 @@ Vue.createApp({
         else this.save_session = localStorage.getItem('appwrite_save_session');
         this.session_id = localStorage.getItem('appwrite_session_id');
         this.getSession();
+        window.setInterval(function(){
+            if (app.loggedin && app.autorefresh) app.refreshDocuments();
+        }, 10000);
     },
     watch: {
         loggedin() {
@@ -68,7 +71,7 @@ Vue.createApp({
                 app.session_id = response.$id;
                 app.loggedin = true;
             }, function (error) {
-                Swal.fire('Login failed: email or password invalid.', error, 'error');
+                Swal.fire('Login failed', error.message, 'error');
                 console.log(error); // Failure
             });
         },
@@ -80,7 +83,7 @@ Vue.createApp({
                 app.session_id = null;
                 app.loggedin = false;
             }, function (error) {
-                Swal.fire('Unknown Appwrite Error', error, 'error');
+                Swal.fire('Unknown Appwrite Error', error.message, 'error');
                 console.log(error); // Failure
             });
         },
@@ -97,7 +100,7 @@ Vue.createApp({
                     app.loggedin = true;
                 }, function (error) {
                     console.log(error); // Failure
-                    Swal.fire('Login failed: session expired.', error, 'error');
+                    Swal.fire('Login failed', error.message, 'error');
                     app.session_id = null;
                     app.loggedin = false;
                 });
@@ -108,7 +111,7 @@ Vue.createApp({
         },
         refreshDocuments() {
             var app = this;
-            app.documents = [];
+            var documents = [];
             let promise = app.sdk.database.listDocuments(COLLECTION_ID);
             promise.then(function (response) {
                 console.log(response);
@@ -123,17 +126,19 @@ Vue.createApp({
                             "version": prog.version
                         });
                     }
-                    app.documents.push({
+                    documents.push({
                         "id": doc.$id,
                         "name": doc.name,
-                        "date": doc.date,
+                        "time": doc.time,
                         "status": doc.status,
                         "progs": progs,
-                        "msg": doc.msg
+                        "msg": doc.msg,
+                        "log": doc.log
                     });
                 }
+                app.documents= documents;
             }, function (error) {
-                Swal.fire('Unknown Appwrite Error', error, 'error');
+                Swal.fire('Unknown Appwrite Error', error.message, 'error');
                 console.log(error); // Failure
             });
         },
@@ -153,7 +158,7 @@ Vue.createApp({
                     console.log(response); // Success
                 }, function (error) {
                     error_occured = true;
-                    Swal.fire('Unknown Appwrite Error', error, 'error');
+                    Swal.fire('Unknown Appwrite Error', error.message, 'error');
                     console.log(error); // Failure
                 });
             }

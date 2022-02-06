@@ -1,5 +1,5 @@
 <!--
-version 2022.02.02.1
+version 2022.02.06.1
 -->
 
 <!DOCTYPE html>
@@ -28,12 +28,13 @@ version 2022.02.02.1
             </div>
             <div id="listbox">
                 <button v-on:click="refreshDocuments" v-bind:disabled="!loggedin">Refresh</button>
+                Autorefresh: <input type="checkbox" v-model="autorefresh" v-bind:disabled="!loggedin">
                 <button v-on:click="saveDocument" v-bind:disabled="!loggedin">Save</button>
                 <table id="list">
-                    <tr><th width="10%">Name</th><th width="10%">Date</th><th width="5%">Authorize?</th><th>Status</th></tr>
+                    <tr><th width="10%">Name</th><th width="20%">Time</th><th width="5%">Authorize?</th><th>Status</th></tr>
                     <tr v-for="document in documents">
                         <td>{{document.name}}</td>
-                        <td>{{document.date}}</td>
+                        <td>{{document.time}}</td>
                         <td>
                             <span v-if="document.status==0 || document.status==1">
                                 Upgrade?
@@ -60,20 +61,22 @@ version 2022.02.02.1
                                 </table>
                             </span>
                             <span v-if="document.status==2 || document.status==3">
-                                Success!
+                                Upgrade Success! Waiting for autoremove.
                             </span>
                             <span v-if="document.status==4">
-                                All Done!
+                                All Done! <a v-bind:href="document.log" target="_blank">View log</a>
                             </span>
                             <span v-if="document.status==5">
-                                Up to date
+                                Up to date.
+                            </span>
+                            <span v-if="document.status>=10 && document.status<=13">
+                                Processing {{processing_msg[document.status-10]}}.
                             </span>
                         </td>
                     </tr>
                 </table>
             </div>
         </div>
-        <script src="js/app.js"></script>
+        <script type="module" src="js/app.js"></script>
     </body>
 </html>
-

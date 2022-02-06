@@ -41,6 +41,10 @@
 | 3 | autoremove已授权 |
 | 4 | 全部完成 |
 | 5 | 未发现可用升级 |
+| 10 | 正在执行apt update |
+| 11 | 正在设置apt hold |
+| 12 | 正在执行apt upgrade |
+| 13 | 正在执行apt autoremove |
 
 ## 使用方法
 ### 在服务器上安装appwrite，请参考[官方文档](https://appwrite.io/docs/installation)
@@ -50,10 +54,13 @@
 3. 在`Develop-Database-Collections`中新建Collection，ID和名称任取。记住`Collection ID`。随后在`Collection-Attributes`中添加以下项目：
     | Attribute ID | Type |
     | ------------ | ---- |
+    | status | integer |
     | id | string |
     | name | string |
+    | time | string |
+    | msg | string |
     | progs | string[] |
-    | status | integer |
+    | log | string(url) |
 4. 在`Develop-Users`中新建用户，ID、名称、邮箱和密码均任意设置，该邮箱和密码用于前端登录，请保证其具备一定的复杂度。记住用户ID。
 5. 在`Manage-API Keys`中新建API Key，名称任取，授予以下权限。创建后点击show secret记住生成的API Key：
     - `collections.read`
@@ -62,11 +69,11 @@
     - `files.write`
 
 ### 配置前端
-1. 将frontend文件夹的内容复制到web服务器上，在`js/app.js`中填入
+1. 将frontend文件夹的内容复制到web服务器上，将`js/conf-template.js`复制到`js/conf.js`，并填入
 ```
-const ENDPOINT = ""       // appwrite的API endpoint地址，类似于"https://<hostname>/v1"
-const PROJECT_ID = ""     // 配置appwrite第2步设置的项目ID
-const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
+export const ENDPOINT = ""       // appwrite的API endpoint地址，类似于"https://<hostname>/v1"
+export const PROJECT_ID = ""     // 配置appwrite第2步设置的项目ID
+export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 ```
 2. 尝试访问
 
@@ -84,4 +91,6 @@ const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 3. 尝试运行`python3 system_update.py`
 
 ## Changelog
+- 2022.02.06 增加更多状态提示，前端使用import避免覆盖`js/app.js`后需要重复填入id的问题，修复错误
+- 2022.02.04 增加更新完成后的日志文件显示
 - 2022.02.02 将状态整合到一个integer变量中，小改前端样式

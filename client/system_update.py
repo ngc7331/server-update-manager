@@ -1,5 +1,5 @@
 '''
-version 2022.02.02.1
+version 2022.02.06.1
 '''
 
 from appwrite.client import Client
@@ -12,7 +12,7 @@ from modules.Logger import Logger
 import os
 import sys
 import time
-from urllib3 import disable_warnings
+import urllib3
 
 def Green(msg:str) -> str:
     return '\033[32m%s\033[0m' % msg
@@ -21,15 +21,19 @@ class API():
     def __init__(self, conf:dict, logger:Logger=None) -> None:
         # Load conf
         self.name = conf['client_name']
+        self._endpoint = conf['endpoint']
+        self._project = conf['project']
+        self._key = conf['key']
         self._collection_id = conf['collection']
         self._permission = conf['permission']
         self._logger = logger if logger is not None else Logger()
+        self._status = None
 
         # Init Client, Database and Storage
         self._client = Client()
-        self._client.set_endpoint(conf['endpoint'])\
-            .set_project(conf['project'])\
-            .set_key(conf['key'])
+        self._client.set_endpoint(self._endpoint)\
+            .set_project(self._project)\
+            .set_key(self._key)
         self._database = Database(self._client)
         self._storage = Storage(self._client)
 
@@ -44,9 +48,13 @@ class API():
         else:
             self._document_id = None
 
-    def Post(self, data:dict):
+    def post(self, data:dict):
         '''Post data to collection by update or create a document'''
-        if (self._document_id is not None):
+        if 'time' not in data:
+            data.update({
+                'time': time.strftime('%Y-%m-%d %H:%M:%S %Z', time.localtime(time.time()))
+            })
+        if self._document_id is not None:
             return self._database.update_document(
                 self._collection_id, self._document_id, data,
                 self._permission, self._permission
@@ -58,7 +66,7 @@ class API():
             )
             self._document_id = result['$id']
             return result
-    def Remove(self):
+    def remove(self):
         '''Remove document from collection'''
         if (self._document_id is None):
             return None
@@ -68,11 +76,13 @@ class API():
         self._document_id = None
         return result
 
+    def status(self, status:int) -> None:
+        self._logger.info('status {} -> {} post to api'.format(self._status, status))
+        self._status = status
+        self.post({'status': status})
+
     def error(self, msg:str) -> None:
-        self.Post({
-            'status': -1,
-            'msg': msg
-        })
+        self.post({'status': -1, 'msg': msg})
 
     def checkAuthorization(self) -> bool:
         document = self._database.get_document(self._collection_id, self._document_id)
@@ -83,11 +93,14 @@ class API():
             return False
         if (self.checkAuthorization() != target_status):
             self._logger.debug('not authorized, sleep %f seconds' % interval)
-            time.sleep(interval)
+            try:
+                time.sleep(interval)
+            except KeyboardInterrupt:
+                self._logger.warning('keyboard interrupt, skip sleep')
             return self.waitUntilAuthorized(target_status, interval, retries+1, max_retries)
         return True
 
-    def Upload(self, filepath:str):
+    def upload(self, filepath:str):
         if (not os.path.exists(filepath)):
             return None
         return self._storage.create_file(
@@ -95,8 +108,9 @@ class API():
             self._permission, self._permission
         )
 
-def AptUpdate() -> bool:
+def aptUpdate() -> bool:
     logger.info('apt update')
+    api.status(10)
     popen('apt update > system_update.tmp')
     with open('system_update.tmp', 'r') as f:
         result = f.read()
@@ -130,64 +144,60 @@ def AptUpdate() -> bool:
         msg += line
     logger.info(msg)
     logger.info('Post API')
-    result = api.Post({
+    result = api.post({
         'name': api.name,
         'progs': progs,
-        'status': 0,
-        'date': time.strftime('%Y-%m-%d', time.localtime(time.time()))
+        'status': 0
     })
     document_id = result['$id']
     logger.debug(result)
     logger.info('Status posted to api, document id: %s' % Green(document_id))
     return True
 
-def AptHold() -> None:
+def aptHold() -> None:
     logger.info('set apt hold')
+    api.status(11)
     hold_list = popen('apt-mark showhold').read().decode()
     for prog in progs:
         prog = json.loads(prog)
         if (prog['name'] in hold_list and not prog['hold']):
-            logger.info('Unhold %s, it will be upgraded from %s to %s' % (
-                prog['name'], prog['version'][1], prog['version'][0]))
+            logger.info('Unhold {name}, it will be upgraded from {version[1]} to {versiob[0]}'.format(**prog))
             popen('apt-mark unhold %s' % prog['name'])
         elif (prog['name'] not in hold_list and prog['hold']):
-            logger.info('Hold %s at version %s' % (prog['name'], prog['version'][1]))
+            logger.info('Hold {name} at version {version[1]}'.format(**prog))
             popen('apt-mark hold %s' % prog['name'])
-    return None
 
-def AptUpgrade() -> bool:
+def aptUpgrade() -> bool:
     logger.info('apt upgrade')
+    api.status(12)
     popen('apt upgrade -y > system_update.tmp')
     need_autoremove = False
     with open('system_update.tmp', 'r') as f:
         result = f.read()
-        logger.debug(result)
+        logger.info(result)
     if ('不需要' in result or 'no longer required' in result):
         logger.info('Found packages that can be autoremoved')
         need_autoremove = True
     os.remove('system_update.tmp')
-    logger.info('Post API')
-    api.Post({
-        'status': 2 if need_autoremove else 4
-    })
+    api.status(2 if need_autoremove else 4)
     return need_autoremove
 
-def AptAutoremove() -> None:
+def aptAutoremove() -> None:
     logger.info('apt autoremove')
+    api.status(13)
     popen('apt autoremove -y')
-    logger.info('Post API')
-    api.Post({
-        'status': 4
-    })
-    return None
+    api.status(4)
 
 def exit() -> None:
-    api.Upload(logfile)
+    log_id = api.upload(logfile)['$id']
+    api.post({
+        'log': '{}/storage/files/{}/view?project={}'.format(api._endpoint, log_id, api._project)
+    })
     sys.exit()
 
 if (__name__ == '__main__'):
     '''禁用urllib3警告'''
-    disable_warnings()
+    urllib3.disable_warnings()
 
     '''检查环境'''
     logging.info('Check environment...')
@@ -217,27 +227,23 @@ if (__name__ == '__main__'):
     api = API(conf, logger)
 
     '''更新'''
-    up_to_date = False
     progs = []
-    if(not AptUpdate()):
-        api.Post({
-            'status': 5,
-            'date': time.strftime('%Y-%m-%d', time.localtime(time.time()))
-        })
+    if(not aptUpdate()):
+        api.status(5)
         logger.info('Up to date, exit...')
         exit()
     if(not api.waitUntilAuthorized(1)):
         api.error('Not authorize with 24 hours')
         logger.critical('Not authorize with 24 hours, exit...')
         exit()
-    AptHold()
-    if (not AptUpgrade()):
+    aptHold()
+    if (not aptUpgrade()):
         logger.info('No need for autoremove, exit...')
         exit()
     if(not api.waitUntilAuthorized(3)):
         api.error('Not authorize with 24 hours')
         logger.critical('Not authorize with 24 hours, exit...')
         exit()
-    AptAutoremove()
+    aptAutoremove()
     logger.info('All done! exit...')
     exit()
