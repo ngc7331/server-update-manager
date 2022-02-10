@@ -1,5 +1,5 @@
 /*
-version 2022.02.06.1
+version 2022.02.10.1
 */
 
 import { ENDPOINT, PROJECT_ID, COLLECTION_ID } from './conf.js'
@@ -27,7 +27,7 @@ Vue.createApp({
             save_session: true,
             autorefresh: true,
             documents: [],
-            processing_msg: ["update", "hold", "upgrade", "autoremove"]
+            proc_msg: ["update", "hold", "upgrade", "autoremove"]
         }
     },
     mounted() {
@@ -133,7 +133,8 @@ Vue.createApp({
                         "status": doc.status,
                         "progs": progs,
                         "msg": doc.msg,
-                        "log": doc.log
+                        "log": doc.log,
+                        "error": doc.error
                     });
                 }
                 app.documents= documents;

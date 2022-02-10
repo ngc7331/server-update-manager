@@ -1,5 +1,5 @@
 '''
-version 2022.02.06.1
+version 2022.02.10.1
 '''
 
 from appwrite.client import Client
@@ -9,6 +9,7 @@ import json
 import logging
 from modules.popen import popen
 from modules.Logger import Logger
+from modules.const import *
 import os
 import sys
 import time
@@ -51,15 +52,14 @@ class API():
     def post(self, data:dict):
         '''Post data to collection by update or create a document'''
         if 'time' not in data:
-            data.update({
-                'time': time.strftime('%Y-%m-%d %H:%M:%S %Z', time.localtime(time.time()))
-            })
+            data.update({'time': time.strftime('%Y-%m-%d %H:%M:%S %Z', time.localtime(time.time()))})
         if self._document_id is not None:
             return self._database.update_document(
                 self._collection_id, self._document_id, data,
                 self._permission, self._permission
             )
         else:
+            data.update({'name': self.name})
             result = self._database.create_document(
                 self._collection_id, 'unique()', data,
                 self._permission, self._permission
@@ -76,13 +76,23 @@ class API():
         self._document_id = None
         return result
 
+    def init(self) -> None:
+        self.post({
+            'error': False,
+            'status': INIT,
+            'log': '',
+            'msg': ''
+        })
+
     def status(self, status:int) -> None:
         self._logger.info('status {} -> {} post to api'.format(self._status, status))
         self._status = status
         self.post({'status': status})
 
     def error(self, msg:str) -> None:
-        self.post({'status': -1, 'msg': msg})
+        self.post({'error': True, 'msg': msg})
+    def fatal(self, msg:str) -> None:
+        self.post({'status': FATAL, 'error': True, 'msg': msg})
 
     def checkAuthorization(self) -> bool:
         document = self._database.get_document(self._collection_id, self._document_id)
@@ -108,13 +118,26 @@ class API():
             self._permission, self._permission
         )
 
+def parseErr(msg: str) -> str:
+    res = []
+    for line in msg.splitlines():
+        if (line.startswith('E:') or
+            line.startswith('Err:') or
+            line.startswith('W:') or
+            line.startswith('Warn:')
+        ): res.append(line)
+    return '\n'.join(res)
+
 def aptUpdate() -> bool:
     logger.info('apt update')
-    api.status(10)
-    popen('apt update > system_update.tmp')
+    api.status(PROC_UPDATE)
+    popen('apt update > system_update.tmp 2>&1')
     with open('system_update.tmp', 'r') as f:
         result = f.read()
         logger.debug(result)
+    if (parseErr(result)):
+        api.error('apt update completed with error:\n{}'.format(parseErr(result)))
+        logger.error('apt update completed with error, trying to ignore')
     if('apt list --upgradable' not in result):
         return False
 
@@ -145,9 +168,8 @@ def aptUpdate() -> bool:
     logger.info(msg)
     logger.info('Post API')
     result = api.post({
-        'name': api.name,
         'progs': progs,
-        'status': 0
+        'status': AUTH_UPGRADE
     })
     document_id = result['$id']
     logger.debug(result)
@@ -156,7 +178,7 @@ def aptUpdate() -> bool:
 
 def aptHold() -> None:
     logger.info('set apt hold')
-    api.status(11)
+    api.status(PROC_HOLD)
     hold_list = popen('apt-mark showhold').read().decode()
     for prog in progs:
         prog = json.loads(prog)
@@ -166,10 +188,11 @@ def aptHold() -> None:
         elif (prog['name'] not in hold_list and prog['hold']):
             logger.info('Hold {name} at version {version[1]}'.format(**prog))
             popen('apt-mark hold %s' % prog['name'])
+    api.status(WAIT_UPGRADE)
 
 def aptUpgrade() -> bool:
     logger.info('apt upgrade')
-    api.status(12)
+    api.status(PROC_UPGARDE)
     popen('apt upgrade -y > system_update.tmp')
     need_autoremove = False
     with open('system_update.tmp', 'r') as f:
@@ -179,14 +202,14 @@ def aptUpgrade() -> bool:
         logger.info('Found packages that can be autoremoved')
         need_autoremove = True
     os.remove('system_update.tmp')
-    api.status(2 if need_autoremove else 4)
+    api.status(AUTH_AUTOREMOVE if need_autoremove else ALL_DONE)
     return need_autoremove
 
 def aptAutoremove() -> None:
     logger.info('apt autoremove')
-    api.status(13)
+    api.status(PROC_AUTOREMOVE)
     popen('apt autoremove -y')
-    api.status(4)
+    api.status(ALL_DONE)
 
 def exit() -> None:
     log_id = api.upload(logfile)['$id']
@@ -229,10 +252,10 @@ if (__name__ == '__main__'):
     '''更新'''
     progs = []
     if(not aptUpdate()):
-        api.status(5)
+        api.status(UP_TO_DATE)
         logger.info('Up to date, exit...')
         exit()
-    if(not api.waitUntilAuthorized(1)):
+    if(not api.waitUntilAuthorized(WAIT_HOLD)):
         api.error('Not authorize with 24 hours')
         logger.critical('Not authorize with 24 hours, exit...')
         exit()
@@ -240,7 +263,7 @@ if (__name__ == '__main__'):
     if (not aptUpgrade()):
         logger.info('No need for autoremove, exit...')
         exit()
-    if(not api.waitUntilAuthorized(3)):
+    if(not api.waitUntilAuthorized(WAIT_AUTOREMOVE)):
         api.error('Not authorize with 24 hours')
         logger.critical('Not authorize with 24 hours, exit...')
         exit()

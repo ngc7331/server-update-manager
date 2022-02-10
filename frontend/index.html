@@ -1,5 +1,5 @@
 <!--
-version 2022.02.06.1
+version 2022.02.10.1
 -->
 
 <!DOCTYPE html>
@@ -36,20 +36,26 @@ version 2022.02.06.1
                         <td>{{document.name}}</td>
                         <td>{{document.time}}</td>
                         <td>
-                            <span v-if="document.status==0 || document.status==1">
+                            <span v-if="document.status==1 || document.status==2 || document.status==22">
                                 Upgrade?
-                                <input type="checkbox" v-model="document.status" false-value="0" true-value="1">
+                                <input type="checkbox" v-model="document.status" false-value="22" true-value="1">
                             </span>
-                            <span v-if="document.status==2 || document.status==3">
+                            <span v-if="document.status==3 || document.status==23">
                                 Autoremove?
-                                <input type="checkbox" v-model="document.status" false-value="2" true-value="3">
+                                <input type="checkbox" v-model="document.status" false-value="23" true-value="3">
                             </span>
                         </td>
                         <td>
-                            <span v-if="document.status==-1">
-                                Error: {{document.msg}}
+                            <span v-if="document.error">
+                                Error occured: <p>{{document.msg}}</p>
                             </span>
-                            <span v-if="document.status==0 || document.status==1">
+                            <span v-if="document.status==-1">
+                                Fatal: {{document.msg}} <a v-bind:href="document.log" target="_blank">View log</a>
+                            </span>
+                            <span v-if="document.status==0">
+                                Client initialized.
+                            </span>
+                            <span v-if="document.status==1 || document.status==2 || document.status==22">
                                 <table width="100%" class="document">
                                     <tr><th width="40%">Name</th><th width="5%">Hold?</th><th>New Version</th><th>Old Version</th></tr>
                                     <tr v-for="prog in document.progs">
@@ -60,17 +66,17 @@ version 2022.02.06.1
                                     </tr>
                                 </table>
                             </span>
-                            <span v-if="document.status==2 || document.status==3">
+                            <span v-if="document.status==3 || document.status==23">
                                 Upgrade Success! Waiting for autoremove.
                             </span>
-                            <span v-if="document.status==4">
+                            <span v-if="document.status==5">
                                 All Done! <a v-bind:href="document.log" target="_blank">View log</a>
                             </span>
-                            <span v-if="document.status==5">
+                            <span v-if="document.status==9">
                                 Up to date.
                             </span>
                             <span v-if="document.status>=10 && document.status<=13">
-                                Processing {{processing_msg[document.status-10]}}.
+                                Processing {{proc_msg[document.status-10]}}.
                             </span>
                         </td>
                     </tr>

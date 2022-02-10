@@ -34,17 +34,22 @@
 ### 状态
 | 状态码 | 解释 |
 | ----- | --- |
-| -1 | 出错 |
-| 0 | 等待升级授权 |
-| 1 | 升级已授权 |
-| 2 | 等待autoremove授权 |
-| 3 | autoremove已授权 |
-| 4 | 全部完成 |
-| 5 | 未发现可用升级 |
+| -1 | 致命错误导致程序退出 |
+| | |
+| 0 | 程序初始化，等待apt update |
+| 1 | 已授权，等待apt hold |
+| 2 | 已授权，等待apt upgrade |
+| 3 | 已授权，等待apt autoremove |
+| 5 | 全部完成 |
+| 9 | 未发现可用升级 |
+| | |
 | 10 | 正在执行apt update |
 | 11 | 正在设置apt hold |
 | 12 | 正在执行apt upgrade |
 | 13 | 正在执行apt autoremove |
+| | |
+| 22 | 等待apt upgrade授权 |
+| 23 | 等待apt autoremove授权 |
 
 ## 使用方法
 ### 在服务器上安装appwrite，请参考[官方文档](https://appwrite.io/docs/installation)
@@ -55,6 +60,7 @@
     | Attribute ID | Type |
     | ------------ | ---- |
     | status | integer |
+    | error | bool |
     | name | string |
     | time | string |
     | msg | string |
@@ -90,6 +96,7 @@ export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 3. 尝试运行`python3 system_update.py`
 
 ## Changelog
+- 2022.02.10 修改状态表示，优化错误处理
 - 2022.02.06 增加更多状态提示，前端使用import避免覆盖`js/app.js`后需要重复填入id的问题，修复错误
 - 2022.02.04 增加更新完成后的日志文件显示
 - 2022.02.02 将状态整合到一个integer变量中，小改前端样式
