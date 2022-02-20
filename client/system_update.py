@@ -1,5 +1,5 @@
 '''
-version 2022.02.10.1
+version 2022.02.20.1
 '''
 
 from appwrite.client import Client
@@ -15,8 +15,10 @@ import sys
 import time
 import urllib3
 
+
 def Green(msg:str) -> str:
     return '\033[32m%s\033[0m' % msg
+
 
 class API():
     def __init__(self, conf:dict, logger:Logger=None) -> None:
@@ -94,21 +96,9 @@ class API():
     def fatal(self, msg:str) -> None:
         self.post({'status': FATAL, 'error': True, 'msg': msg})
 
-    def checkAuthorization(self) -> bool:
+    def checkAuthorization(self) -> int:
         document = self._database.get_document(self._collection_id, self._document_id)
         return document['status']
-
-    def waitUntilAuthorized(self, target_status:int, interval:float = 300, retries:int = 0, max_retries:int = 288) -> bool:
-        if (retries > max_retries):
-            return False
-        if (self.checkAuthorization() != target_status):
-            self._logger.debug('not authorized, sleep %f seconds' % interval)
-            try:
-                time.sleep(interval)
-            except KeyboardInterrupt:
-                self._logger.warning('keyboard interrupt, skip sleep')
-            return self.waitUntilAuthorized(target_status, interval, retries+1, max_retries)
-        return True
 
     def upload(self, filepath:str):
         if (not os.path.exists(filepath)):
@@ -117,6 +107,36 @@ class API():
             'unique()', open(filepath, 'rb'),
             self._permission, self._permission
         )
+
+
+def keyboardInterruptHandler() -> None:
+    logger.info('Keyboard interrupt: ')
+    input('To exit, press ctrl+c again; else, press enter.')
+
+
+def waitUntil(check, target_status:int, logger:Logger,
+              interval:float = 300, retries:int = 0, max_retries:int = 288) -> bool:
+    if (retries > max_retries):
+        return False
+    status = check()
+    if (status != target_status):
+        logger.debug("status({}) doesn't match target({}), sleep {} seconds".format(status, target_status, interval))
+        try:
+            time.sleep(interval)
+        except KeyboardInterrupt:
+            keyboardInterruptHandler()
+        return waitUntil(check, target_status, logger, interval, retries+1, max_retries)
+    return True
+
+
+def checkLock() -> int:
+    if (os.path.exists('system_update.lock')):
+        with open('system_update.lock', 'r') as f:
+            pid = f.read()
+    else:
+        pid = 0
+    return pid
+
 
 def parseErr(msg: str) -> str:
     res = []
@@ -127,6 +147,7 @@ def parseErr(msg: str) -> str:
             line.startswith('Warn:')
         ): res.append(line)
     return '\n'.join(res)
+
 
 def aptUpdate() -> bool:
     logger.info('apt update')
@@ -176,6 +197,7 @@ def aptUpdate() -> bool:
     logger.info('Status posted to api, document id: %s' % Green(document_id))
     return True
 
+
 def aptHold() -> None:
     logger.info('set apt hold')
     api.status(PROC_HOLD)
@@ -189,6 +211,7 @@ def aptHold() -> None:
             logger.info('Hold {name} at version {version[1]}'.format(**prog))
             popen('apt-mark hold %s' % prog['name'])
     api.status(WAIT_UPGRADE)
+
 
 def aptUpgrade() -> bool:
     logger.info('apt upgrade')
@@ -205,34 +228,38 @@ def aptUpgrade() -> bool:
     api.status(AUTH_AUTOREMOVE if need_autoremove else ALL_DONE)
     return need_autoremove
 
+
 def aptAutoremove() -> None:
     logger.info('apt autoremove')
     api.status(PROC_AUTOREMOVE)
     popen('apt autoremove -y')
     api.status(ALL_DONE)
 
-def exit() -> None:
-    log_id = api.upload(logfile)['$id']
-    api.post({
-        'log': '{}/storage/files/{}/view?project={}'.format(api._endpoint, log_id, api._project)
-    })
-    sys.exit()
+
+def main() -> None:
+    if(not aptUpdate()):
+        api.status(UP_TO_DATE)
+        logger.info('Up to date, exit...')
+        return None
+    if(not waitUntil(api.checkAuthorization, WAIT_HOLD, logger)):
+        api.error('Not authorize with 24 hours')
+        logger.critical('Not authorize with 24 hours, exit...')
+        return None
+    aptHold()
+    if (not aptUpgrade()):
+        logger.info('No need for autoremove, exit...')
+        return None
+    if(not waitUntil(api.checkAuthorization, WAIT_AUTOREMOVE, logger)):
+        api.error('Not authorize with 24 hours')
+        logger.critical('Not authorize with 24 hours, exit...')
+        return None
+    aptAutoremove()
+    logger.info('All done! exit...')
+
 
 if (__name__ == '__main__'):
-    '''禁用urllib3警告'''
-    urllib3.disable_warnings()
-
-    '''检查环境'''
-    logging.info('Check environment...')
-    try:
-        if (os.geteuid() != 0):
-            logging.critical('This script must be run as root, exit...')
-            sys.exit()
-    except AttributeError:
-        logging.critical('This script must be run in Linux, exit...')
-        sys.exit()
-
     '''载入配置'''
+    logging.info('Load config...')
     try:
         with open('system_update/conf.json', 'r') as f:
             conf = json.load(f)
@@ -240,33 +267,57 @@ if (__name__ == '__main__'):
         logging.critical(e)
         sys.exit()
 
-    '''初始化API & logger'''
-    logging.info('Init Logger & API...')
+    '''初始化logger'''
+    logging.info('Init Logger...')
     logfile = os.path.join('system_update', '%s_%s.log' % (
         conf['client_name'],
         time.strftime('%Y%m%d', time.localtime(time.time()))
     ))
     logger = Logger(logfile=logfile, logdir='system_update')
+
+    '''禁用urllib3警告'''
+    logger.warning('urllib3 warnings disabled')
+    urllib3.disable_warnings()
+
+    '''检查环境'''
+    logger.info('Check environment...')
+    try:
+        if (os.geteuid() != 0):
+            logger.critical('This script must be run as root, exit...')
+            sys.exit()
+    except AttributeError:
+        logger.critical('This script must be run in Linux, exit...')
+        sys.exit()
+
+    '''lock'''
+    pid = checkLock()
+    if (pid):
+        logger.warning('Another upgrade process appears to be running, pid: {}'.format(pid))
+        logger.warning('wait until lock is released...')
+        if (not waitUntil(checkLock, 0, logger, max_retries=12)):
+            logger.critical('Max retries exceeded, exit...')
+            sys.exit()
+    with open('system_update.lock', 'w') as f:
+        f.write(str(os.getpid()))
+
+    '''初始化Appwrite API'''
+    logger.info('Init Appwrite API...')
     api = API(conf, logger)
 
     '''更新'''
     progs = []
-    if(not aptUpdate()):
-        api.status(UP_TO_DATE)
-        logger.info('Up to date, exit...')
-        exit()
-    if(not api.waitUntilAuthorized(WAIT_HOLD)):
-        api.error('Not authorize with 24 hours')
-        logger.critical('Not authorize with 24 hours, exit...')
-        exit()
-    aptHold()
-    if (not aptUpgrade()):
-        logger.info('No need for autoremove, exit...')
-        exit()
-    if(not api.waitUntilAuthorized(WAIT_AUTOREMOVE)):
-        api.error('Not authorize with 24 hours')
-        logger.critical('Not authorize with 24 hours, exit...')
-        exit()
-    aptAutoremove()
-    logger.info('All done! exit...')
-    exit()
+    try:
+        main()
+    except Exception as e:
+        logger.critical(e.__str__())
+
+    '''上传log'''
+    log_id = api.upload(logfile)['$id']
+    try:
+        api.post({'log': '{}/storage/files/{}/view?project={}'.format(
+                api._endpoint, log_id, api._project)})
+    except:
+        pass
+
+    '''lock'''
+    os.unlink('system_update.lock')

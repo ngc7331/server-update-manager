@@ -96,6 +96,7 @@ export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 3. 尝试运行`python3 system_update.py`
 
 ## Changelog
+- 2022.02.20 更新client初始化逻辑，加入锁机制
 - 2022.02.10 修改状态表示，优化错误处理
 - 2022.02.06 增加更多状态提示，前端使用import避免覆盖`js/app.js`后需要重复填入id的问题，修复错误
 - 2022.02.04 增加更新完成后的日志文件显示
