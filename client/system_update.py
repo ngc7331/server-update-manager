@@ -82,7 +82,6 @@ class API():
         self.post({
             'error': False,
             'status': INIT,
-            'log': '',
             'msg': ''
         })
 
@@ -303,6 +302,7 @@ if (__name__ == '__main__'):
     '''初始化Appwrite API'''
     logger.info('Init Appwrite API...')
     api = API(conf, logger)
+    api.init()
 
     '''更新'''
     progs = []
