@@ -11,6 +11,7 @@ from modules.popen import popen
 from modules.Logger import Logger
 from modules.const import *
 import os
+import psutil
 import sys
 import time
 import urllib3
@@ -129,11 +130,14 @@ def waitUntil(check, target_status:int, logger:Logger,
 
 
 def checkLock() -> int:
-    if (os.path.exists('system_update.lock')):
-        with open('system_update.lock', 'r') as f:
-            pid = f.read()
-    else:
-        pid = 0
+    if not os.path.exists('system_update.lock'):
+        return 0
+    with open('system_update.lock', 'r') as f:
+        pid = int(f.read())
+    if pid not in psutil.pids():
+        return 0
+    if psutil.Process(pid).name() != 'python3':
+        return 0
     return pid
 
 
@@ -155,9 +159,11 @@ def aptUpdate() -> bool:
     with open('system_update.tmp', 'r') as f:
         result = f.read()
         logger.debug(result)
-    if (parseErr(result)):
-        api.error('apt update completed with error:\n{}'.format(parseErr(result)))
+    err = parseErr(result)
+    if (err):
+        api.error('apt update completed with error:\n{}'.format(err))
         logger.error('apt update completed with error, trying to ignore')
+        logger.warning(err)
     if('apt list --upgradable' not in result):
         return False
 
