@@ -120,7 +120,7 @@ def waitUntil(check, target_status:int, logger:Logger,
         return False
     status = check()
     if (status != target_status):
-        logger.debug("status({}) doesn't match target({}), sleep {} seconds".format(status, target_status, interval))
+        logger.debug(f"status({status}) doesn't match target({target_status}), sleep {interval} seconds")
         try:
             time.sleep(interval)
         except KeyboardInterrupt:
@@ -161,7 +161,7 @@ def aptUpdate() -> bool:
         logger.debug(result)
     err = parseErr(result)
     if (err):
-        api.error('apt update completed with error:\n{}'.format(err))
+        api.error(f'apt update completed with error:\n{err}')
         logger.error('apt update completed with error, trying to ignore')
         logger.warning(err)
     if('apt list --upgradable' not in result):
@@ -241,6 +241,15 @@ def aptAutoremove() -> None:
     api.status(ALL_DONE)
 
 
+def getFiles(path:str = os.getcwd(), suffix:str = '') -> str:
+    res = []
+    for root, dirs, files in os.walk(path):
+        for f in files:
+            if f.endswith(suffix):
+                res.append(f)
+    return res
+
+
 def main() -> None:
     if(not aptUpdate()):
         api.status(UP_TO_DATE)
@@ -297,7 +306,7 @@ if (__name__ == '__main__'):
     '''lock'''
     pid = checkLock()
     if (pid):
-        logger.warning('Another upgrade process appears to be running, pid: {}'.format(pid))
+        logger.warning(f'Another upgrade process appears to be running, pid: {pid}')
         logger.warning('wait until lock is released...')
         if (not waitUntil(checkLock, 0, logger, max_retries=12)):
             logger.critical('Max retries exceeded, exit...')
@@ -320,10 +329,15 @@ if (__name__ == '__main__'):
     '''上传log'''
     log_id = api.upload(logfile)['$id']
     try:
-        api.post({'log': '{}/storage/files/{}/view?project={}'.format(
-                api._endpoint, log_id, api._project)})
+        api.post({f'log': '{api._endpoint}/storage/files/{log_id}/view?project={_project}'})
     except:
         pass
+
+    '''清理log'''
+    for logfile in getFiles('system_update', '.log'):
+        created = time.mktime(time.strptime(logfile.replace(f'{conf["client_name"]}_', '').replace('.log', ''), '%Y%m%d'))
+        if time.time() - created > 86400 * 7:
+            os.unlink(os.path.join('system_update', logfile))
 
     '''lock'''
     os.unlink('system_update.lock')
