@@ -42,7 +42,7 @@ def checkLock() -> int:
         pid = int(f.read())
     if pid not in psutil.pids():
         return 0
-    if psutil.Process(pid).name() != 'python3':
+    if not psutil.Process(pid).name() in ['python3', 'python']:
         return 0
     return pid
 
@@ -53,7 +53,9 @@ def parseErr(msg: str) -> str:
         if (line.startswith('E:') or
             line.startswith('Err:') or
             line.startswith('W:') or
-            line.startswith('Warn:')
+            line.startswith('Warn:') or
+            line.startswith('error') or
+            line.startswith('warning')
         ): res.append(line)
     return '\n'.join(res)
 
@@ -236,7 +238,7 @@ if __name__ == '__main__':
     '''上传log'''
     log_id = api.upload(logfile)['$id']
     try:
-        api.post(log = f'{api._endpoint}/storage/files/{log_id}/view?project={api._project}')
+        api.post(log = f'{api._endpoint}/storage/files/{log_id}/view?project={api._project}&mode=admin')
     except:
         pass
 
