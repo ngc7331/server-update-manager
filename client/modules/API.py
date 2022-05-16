@@ -99,12 +99,12 @@ class API():
             self._permission, self._permission
         )
     def listFiles(self) -> list:
-        l = self._storage.list_files(self._bucket, limit=100)
-        n = l['total']
-        l = l['files']
+        tmp = self._storage.list_files(self._bucket, self.name, 100)
+        n = tmp['total']
+        l = tmp['files']
         offset = 100
         while n - offset > 0:
-            l.extend(self._storage.list_files(self._bucket, limit=100, offset=offset)['files'])
+            l.extend(self._storage.list_files(self._bucket, self.name, 100, offset)['files'])
             offset += 100
         return l
     def deleteFile(self, fileid:str):
