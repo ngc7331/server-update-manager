@@ -1,9 +1,18 @@
+'''
+version 2022.05.16.1 dev
+'''
 from appwrite.client import Client
 from appwrite.services.database import Database
 from appwrite.services.storage import Storage
+from modules.color import Green
+from modules.const import *
+from modules.Logger import Logger, getLogger
+import os
+import time
+
 
 class API():
-    def __init__(self, conf:dict, logger:Logger=Logger()) -> None:
+    def __init__(self, conf:dict, logger:Logger=getLogger()) -> None:
         # Load conf
         self.name = conf['client_name']
         self._endpoint = conf['endpoint']
