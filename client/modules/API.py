@@ -96,6 +96,6 @@ class API():
         if not os.path.exists(filepath):
             return None
         return self._storage.create_file(
-            self._bucket, 'unique()', open(filepath, 'rb'),
+            self._bucket, 'unique()', filepath,
             self._permission, self._permission
         )

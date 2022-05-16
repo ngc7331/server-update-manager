@@ -192,7 +192,7 @@ if __name__ == '__main__':
 
     '''初始化logger'''
     logging.info('Init Logger...')
-    logfile = os.path.join('system_update', '{}_{}.log'.format(
+    logfile = os.path.join(os.getcwd(), 'system_update', '{}_{}.log'.format(
         conf['client_name'],
         time.strftime('%Y%m%d', time.localtime(time.time()))
     ))
@@ -238,7 +238,7 @@ if __name__ == '__main__':
     '''上传log'''
     log_id = api.upload(logfile)['$id']
     try:
-        api.post(log = f'{api._endpoint}/storage/files/{log_id}/view?project={api._project}&mode=admin')
+        api.post(log = f'{api._endpoint}/storage/buckets/{api._bucket}/files/{log_id}/view?project={api._project}&mode=admin')
     except:
         pass
 
