@@ -1,6 +1,7 @@
 '''
 version 2022.05.16.1 dev
 '''
+from re import A
 from appwrite.client import Client
 from appwrite.services.database import Database
 from appwrite.services.storage import Storage
@@ -15,10 +16,11 @@ class API():
     def __init__(self, conf:dict, logger:Logger=getLogger()) -> None:
         # Load conf
         self.name = conf['client_name']
-        self._endpoint = conf['endpoint']
-        self._project = conf['project']
-        self._key = conf['key']
+        self._bucket = conf['bucket']
         self._collection_id = conf['collection']
+        self._endpoint = conf['endpoint']
+        self._key = conf['key']
+        self._project = conf['project']
         self._permission = conf['permission']
         self._logger = logger
         self._status = None
@@ -94,6 +96,6 @@ class API():
         if not os.path.exists(filepath):
             return None
         return self._storage.create_file(
-            'unique()', open(filepath, 'rb'),
+            self._bucket, 'unique()', open(filepath, 'rb'),
             self._permission, self._permission
         )
