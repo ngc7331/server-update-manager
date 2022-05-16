@@ -1,7 +1,6 @@
 '''
 version 2022.05.16.1 dev
 '''
-from re import A
 from appwrite.client import Client
 from appwrite.services.database import Database
 from appwrite.services.storage import Storage
@@ -99,7 +98,14 @@ class API():
             self._bucket, 'unique()', filepath,
             self._permission, self._permission
         )
-    def listFiles(self):
-        return self._storage.list_files(self._bucket)['files']
+    def listFiles(self) -> list:
+        l = self._storage.list_files(self._bucket, limit=100)
+        n = l['total']
+        l = l['files']
+        offset = 100
+        while n - offset > 0:
+            l.extend(self._storage.list_files(self._bucket, limit=100, offset=offset)['files'])
+            offset += 100
+        return l
     def deleteFile(self, fileid:str):
         return self._storage.delete_file(self._bucket, fileid)
