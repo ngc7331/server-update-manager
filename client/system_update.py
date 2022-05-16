@@ -238,14 +238,23 @@ if __name__ == '__main__':
         except Exception as e:
             logger.critical(Red(e.__str__()))
 
+        '''清理远程log'''
+        try:
+            for f in api.listFiles():
+                if f['name'].startswith(api.name):
+                    if time.time() - f['dateCreated'] > 86400 * 7:
+                        api.deleteFile(f['$id'])
+        except Exception as e:
+            logger.warning(Yellow('Failed to clean up remote log files') + e.__str__())
+
         '''上传log'''
         try:
             log_id = api.upload(logfile)['$id']
             api.post(log = f'{api._endpoint}/storage/buckets/{api._bucket}/files/{log_id}/view?project={api._project}&mode=admin')
-        except:
-            logger.warning(Yellow('Failed to upload log file'))
+        except Exception as e:
+            logger.warning(Yellow('Failed to upload log file') + e.__str__())
 
-    '''清理log'''
+    '''清理本地log'''
     for logfile in getFiles('system_update', '.log'):
         created = time.mktime(time.strptime(logfile.replace(f'{conf["client_name"]}_', '').replace('.log', ''), '%Y%m%d'))
         if time.time() - created > 86400 * 7:

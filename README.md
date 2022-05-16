@@ -72,6 +72,7 @@
     - `collections.read`
     - `documents.read`
     - `documents.write`
+    - `files.read`
     - `files.write`
 
 ### 配置前端

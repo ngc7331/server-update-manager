@@ -99,3 +99,7 @@ class API():
             self._bucket, 'unique()', filepath,
             self._permission, self._permission
         )
+    def listFiles(self):
+        return self._storage.list_files(self._bucket)['files']
+    def deleteFile(self, fileid:str):
+        return self._storage.delete_file(self._bucket, fileid)
