@@ -1,6 +1,6 @@
 一个基于[Appwrite](https://appwrite.io/)、Python3、Vue.js的服务器更新管理器
 
-目前使用的appwrite版本为**0.12.1.201**，不同版本间可能存在兼容性问题，0.10版本可以使用[Initial commit](https://github.com/ngc7331/server-update-manager/commit/a61dd1260cbd8d036843f3d81518208f88c5154d)提交的版本。
+目前使用的appwrite版本为**0.13.4.304**，不同版本间可能存在兼容性问题，0.10版本可以使用[Initial commit](https://github.com/ngc7331/server-update-manager/commit/a61dd1260cbd8d036843f3d81518208f88c5154d)提交的版本。
 
 ***仅仅是个人写着玩的项目，可能存在严重的安全性问题，请谨慎使用。如果您愿意，请指教***
 
@@ -67,10 +67,12 @@
     | progs | string[] |
     | log | string(url) |
 4. 在`Develop-Users`中新建用户，ID、名称、邮箱和密码均任意设置，该邮箱和密码用于前端登录，请保证其具备一定的复杂度。记住用户ID。
-5. 在`Manage-API Keys`中新建API Key，名称任取，授予以下权限。创建后点击show secret记住生成的API Key：
+5. 在`Storage`中新建Bucket，ID、名称任意
+6. 在`Manage-API Keys`中新建API Key，名称任取，授予以下权限。创建后点击show secret记住生成的API Key：
     - `collections.read`
     - `documents.read`
     - `documents.write`
+    - `files.read`
     - `files.write`
 
 ### 配置前端
@@ -85,10 +87,11 @@ export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 ### 配置客户端
 1. 将client文件夹的内容复制到需要被管理的linux系统上，将`system_update/conf-template.json`复制到`system_update/conf.json`，并填入
 ```
+"bucket": "",             // 配置appwrite第5步设置的Bucket ID
 "client_name": "",        // 客户端名称，任意设置
 "collection": "",         // 配置appwrite第3步设置的Collection ID
 "endpoint": "",           // appwrite的API endpoint地址，类似于"https://<hostname>/v1"
-"key": "",                // 配置appwrite第5步生成的API key
+"key": "",                // 配置appwrite第6步生成的API key
 "permission": ["user:"],  // 在user:后面填入配置appwrite第4步设置的用户ID
 "project": ""             // 配置appwrite第2步设置的项目ID
 ```
@@ -96,6 +99,7 @@ export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 3. 尝试运行`python3 system_update.py`
 
 ## Changelog
+- 2022.05.16 部分代码重构，更新appwrite至**0.13.4.304**，自动移除7天以前的log
 - 2022.02.20 更新client初始化逻辑，加入锁机制
 - 2022.02.10 修改状态表示，优化错误处理
 - 2022.02.06 增加更多状态提示，前端使用import避免覆盖`js/app.js`后需要重复填入id的问题，修复错误

@@ -1,15 +1,13 @@
 '''
-version 2022.02.20.1
+version 2022.05.16.1 dev
 '''
-
-from appwrite.client import Client
-from appwrite.services.database import Database
-from appwrite.services.storage import Storage
 import json
 import logging
-from modules.popen import popen
-from modules.Logger import Logger
+from modules.API import API
 from modules.const import *
+from modules.color import *
+from modules.Logger import Logger, getLogger
+from modules.popen import popen
 import os
 import psutil
 import sys
@@ -17,109 +15,17 @@ import time
 import urllib3
 
 
-def Green(msg:str) -> str:
-    return '\033[32m%s\033[0m' % msg
-
-
-class API():
-    def __init__(self, conf:dict, logger:Logger=None) -> None:
-        # Load conf
-        self.name = conf['client_name']
-        self._endpoint = conf['endpoint']
-        self._project = conf['project']
-        self._key = conf['key']
-        self._collection_id = conf['collection']
-        self._permission = conf['permission']
-        self._logger = logger if logger is not None else Logger()
-        self._status = None
-
-        # Init Client, Database and Storage
-        self._client = Client()
-        self._client.set_endpoint(self._endpoint)\
-            .set_project(self._project)\
-            .set_key(self._key)
-        self._database = Database(self._client)
-        self._storage = Storage(self._client)
-
-        # Get document id
-        result = self._database.list_documents(self._collection_id)
-        clients = {}
-        for client in result['documents']:
-            clients.update({client['name']: client['$id']})
-        if (self.name in clients.keys()):
-            self._document_id = clients[self.name]
-            self._logger.info('Get document id: %s' % Green(self._document_id))
-        else:
-            self._document_id = None
-
-    def post(self, data:dict):
-        '''Post data to collection by update or create a document'''
-        if 'time' not in data:
-            data.update({'time': time.strftime('%Y-%m-%d %H:%M:%S %Z', time.localtime(time.time()))})
-        if self._document_id is not None:
-            return self._database.update_document(
-                self._collection_id, self._document_id, data,
-                self._permission, self._permission
-            )
-        else:
-            data.update({'name': self.name})
-            result = self._database.create_document(
-                self._collection_id, 'unique()', data,
-                self._permission, self._permission
-            )
-            self._document_id = result['$id']
-            return result
-    def remove(self):
-        '''Remove document from collection'''
-        if (self._document_id is None):
-            return None
-        result = self._database.delete_document(
-            self._collection_id, self._document_id
-        )
-        self._document_id = None
-        return result
-
-    def init(self) -> None:
-        self.post({
-            'error': False,
-            'status': INIT,
-            'msg': ''
-        })
-
-    def status(self, status:int) -> None:
-        self._logger.info('status {} -> {} post to api'.format(self._status, status))
-        self._status = status
-        self.post({'status': status})
-
-    def error(self, msg:str) -> None:
-        self.post({'error': True, 'msg': msg})
-    def fatal(self, msg:str) -> None:
-        self.post({'status': FATAL, 'error': True, 'msg': msg})
-
-    def checkAuthorization(self) -> int:
-        document = self._database.get_document(self._collection_id, self._document_id)
-        return document['status']
-
-    def upload(self, filepath:str):
-        if (not os.path.exists(filepath)):
-            return None
-        return self._storage.create_file(
-            'unique()', open(filepath, 'rb'),
-            self._permission, self._permission
-        )
-
-
 def keyboardInterruptHandler() -> None:
     logger.info('Keyboard interrupt: ')
     input('To exit, press ctrl+c again; else, press enter.')
 
 
-def waitUntil(check, target_status:int, logger:Logger,
+def waitUntil(check, target_status:int, logger:Logger = getLogger(),
               interval:float = 300, retries:int = 0, max_retries:int = 288) -> bool:
-    if (retries > max_retries):
+    if retries > max_retries:
         return False
     status = check()
-    if (status != target_status):
+    if status != target_status:
         logger.debug(f"status({status}) doesn't match target({target_status}), sleep {interval} seconds")
         try:
             time.sleep(interval)
@@ -136,7 +42,7 @@ def checkLock() -> int:
         pid = int(f.read())
     if pid not in psutil.pids():
         return 0
-    if psutil.Process(pid).name() != 'python3':
+    if not psutil.Process(pid).name() in ['python3', 'python']:
         return 0
     return pid
 
@@ -147,7 +53,9 @@ def parseErr(msg: str) -> str:
         if (line.startswith('E:') or
             line.startswith('Err:') or
             line.startswith('W:') or
-            line.startswith('Warn:')
+            line.startswith('Warn:') or
+            line.startswith('error') or
+            line.startswith('warning')
         ): res.append(line)
     return '\n'.join(res)
 
@@ -160,11 +68,11 @@ def aptUpdate() -> bool:
         result = f.read()
         logger.debug(result)
     err = parseErr(result)
-    if (err):
+    if err:
         api.error(f'apt update completed with error:\n{err}')
         logger.error('apt update completed with error, trying to ignore')
         logger.warning(err)
-    if('apt list --upgradable' not in result):
+    if 'apt list --upgradable' not in result:
         return False
 
     logger.info('Get upgrade_list and hold_list')
@@ -177,7 +85,7 @@ def aptUpdate() -> bool:
     logger.info(Green('Update found'))
     msg = ''
     for line in result:
-        if ('正在列表' in line or 'Listing' in line):
+        if '正在列表' in line or 'Listing' in line:
             continue
         # line = '{prog}/{source} {newversion} {architecture} [upgradable from: {oldversion}]'
         prog = line.split('/')[0]
@@ -189,17 +97,18 @@ def aptUpdate() -> bool:
                 line.split(' ', 3)[3].replace('[可从该版本升级：','').replace('[upgradable from: ','').replace(']\n','') #旧版本
             ]
         }))
-        line = '[Hold] %s' % line if (prog in hold_list) else line
+        if prog in hold_list:
+            line = '[Hold] ' + line
         msg += line
     logger.info(msg)
     logger.info('Post API')
-    result = api.post({
-        'progs': progs,
-        'status': AUTH_UPGRADE
-    })
+    result = api.post(
+        progs = progs,
+        status = AUTH_UPGRADE
+    )
     document_id = result['$id']
     logger.debug(result)
-    logger.info('Status posted to api, document id: %s' % Green(document_id))
+    logger.info(f'Status posted to api, document id: {Green(document_id)}')
     return True
 
 
@@ -209,12 +118,12 @@ def aptHold() -> None:
     hold_list = popen('apt-mark showhold').read().decode()
     for prog in progs:
         prog = json.loads(prog)
-        if (prog['name'] in hold_list and not prog['hold']):
+        if prog['name'] in hold_list and not prog['hold']:
             logger.info('Unhold {name}, it will be upgraded from {version[1]} to {versiob[0]}'.format(**prog))
-            popen('apt-mark unhold %s' % prog['name'])
-        elif (prog['name'] not in hold_list and prog['hold']):
+            popen(f'apt-mark unhold {prog["name"]}')
+        elif prog['name'] not in hold_list and prog['hold']:
             logger.info('Hold {name} at version {version[1]}'.format(**prog))
-            popen('apt-mark hold %s' % prog['name'])
+            popen(f'apt-mark hold {prog["name"]}')
     api.status(WAIT_UPGRADE)
 
 
@@ -226,7 +135,7 @@ def aptUpgrade() -> bool:
     with open('system_update.tmp', 'r') as f:
         result = f.read()
         logger.info(result)
-    if ('不需要' in result or 'no longer required' in result):
+    if '不需要' in result or 'no longer required' in result:
         logger.info('Found packages that can be autoremoved')
         need_autoremove = True
     os.remove('system_update.tmp')
@@ -251,39 +160,39 @@ def getFiles(path:str = os.getcwd(), suffix:str = '') -> str:
 
 
 def main() -> None:
-    if(not aptUpdate()):
+    if not aptUpdate():
         api.status(UP_TO_DATE)
         logger.info('Up to date, exit...')
         return None
-    if(not waitUntil(api.checkAuthorization, WAIT_HOLD, logger)):
+    if not waitUntil(api.checkAuthorization, WAIT_HOLD, logger):
         api.error('Not authorize with 24 hours')
-        logger.critical('Not authorize with 24 hours, exit...')
+        logger.critical(Red('Not authorize with 24 hours, exit...'))
         return None
     aptHold()
-    if (not aptUpgrade()):
+    if not aptUpgrade():
         logger.info('No need for autoremove, exit...')
         return None
-    if(not waitUntil(api.checkAuthorization, WAIT_AUTOREMOVE, logger)):
+    if not waitUntil(api.checkAuthorization, WAIT_AUTOREMOVE, logger):
         api.error('Not authorize with 24 hours')
-        logger.critical('Not authorize with 24 hours, exit...')
+        logger.critical(Red('Not authorize with 24 hours, exit...'))
         return None
     aptAutoremove()
     logger.info('All done! exit...')
 
 
-if (__name__ == '__main__'):
+if __name__ == '__main__':
     '''载入配置'''
     logging.info('Load config...')
     try:
         with open('system_update/conf.json', 'r') as f:
             conf = json.load(f)
     except FileNotFoundError as e:
-        logging.critical(e)
+        logging.critical(Red(e))
         sys.exit()
 
     '''初始化logger'''
     logging.info('Init Logger...')
-    logfile = os.path.join('system_update', '%s_%s.log' % (
+    logfile = os.path.join(os.getcwd(), 'system_update', '{}_{}.log'.format(
         conf['client_name'],
         time.strftime('%Y%m%d', time.localtime(time.time()))
     ))
@@ -296,44 +205,56 @@ if (__name__ == '__main__'):
     '''检查环境'''
     logger.info('Check environment...')
     try:
-        if (os.geteuid() != 0):
-            logger.critical('This script must be run as root, exit...')
+        if os.geteuid() != 0:
+            logger.critical(Red('This script must be run as root, exit...'))
             sys.exit()
     except AttributeError:
-        logger.critical('This script must be run in Linux, exit...')
+        logger.critical(Red('This script must be run in Linux, exit...'))
         sys.exit()
 
     '''lock'''
     pid = checkLock()
-    if (pid):
-        logger.warning(f'Another upgrade process appears to be running, pid: {pid}')
-        logger.warning('wait until lock is released...')
-        if (not waitUntil(checkLock, 0, logger, max_retries=12)):
-            logger.critical('Max retries exceeded, exit...')
+    if pid:
+        logger.warning(f'Another upgrade process appears to be running, pid: {Yellow(pid)}')
+        logger.warning(Yellow('wait until lock is released...'))
+        if not waitUntil(checkLock, 0, logger, max_retries=12):
+            logger.critical(Red('Max retries exceeded, exit...'))
             sys.exit()
     with open('system_update.lock', 'w') as f:
         f.write(str(os.getpid()))
 
-    '''初始化Appwrite API'''
-    logger.info('Init Appwrite API...')
-    api = API(conf, logger)
-    api.init()
-
-    '''更新'''
-    progs = []
     try:
-        main()
+        '''初始化Appwrite API'''
+        logger.info('Init Appwrite API...')
+        api = API(conf, logger)
+        api.init()
     except Exception as e:
-        logger.critical(e.__str__())
+        logger.critical(Red(e.__str__()))
+    else:
+        '''更新'''
+        progs = []
+        try:
+            main()
+        except Exception as e:
+            logger.critical(Red(e.__str__()))
 
-    '''上传log'''
-    log_id = api.upload(logfile)['$id']
-    try:
-        api.post({f'log': '{api._endpoint}/storage/files/{log_id}/view?project={_project}'})
-    except:
-        pass
+        '''清理远程log'''
+        try:
+            for f in api.listFiles():
+                if f['name'].startswith(api.name):
+                    if time.time() - f['dateCreated'] > 86400 * 7:
+                        api.deleteFile(f['$id'])
+        except Exception as e:
+            logger.warning(Yellow('Failed to clean up remote log files') + e.__str__())
 
-    '''清理log'''
+        '''上传log'''
+        try:
+            log_id = api.upload(logfile)['$id']
+            api.post(log = f'{api._endpoint}/storage/buckets/{api._bucket}/files/{log_id}/view?project={api._project}&mode=admin')
+        except Exception as e:
+            logger.warning(Yellow('Failed to upload log file') + e.__str__())
+
+    '''清理本地log'''
     for logfile in getFiles('system_update', '.log'):
         created = time.mktime(time.strptime(logfile.replace(f'{conf["client_name"]}_', '').replace('.log', ''), '%Y%m%d'))
         if time.time() - created > 86400 * 7:
