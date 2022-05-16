@@ -223,24 +223,27 @@ if __name__ == '__main__':
     with open('system_update.lock', 'w') as f:
         f.write(str(os.getpid()))
 
-    '''初始化Appwrite API'''
-    logger.info('Init Appwrite API...')
-    api = API(conf, logger)
-    api.init()
-
-    '''更新'''
-    progs = []
     try:
-        main()
+        '''初始化Appwrite API'''
+        logger.info('Init Appwrite API...')
+        api = API(conf, logger)
+        api.init()
     except Exception as e:
         logger.critical(e.__str__())
+    else:
+        '''更新'''
+        progs = []
+        try:
+            main()
+        except Exception as e:
+            logger.critical(e.__str__())
 
-    '''上传log'''
-    log_id = api.upload(logfile)['$id']
-    try:
-        api.post(log = f'{api._endpoint}/storage/buckets/{api._bucket}/files/{log_id}/view?project={api._project}&mode=admin')
-    except:
-        pass
+        '''上传log'''
+        log_id = api.upload(logfile)['$id']
+        try:
+            api.post(log = f'{api._endpoint}/storage/buckets/{api._bucket}/files/{log_id}/view?project={api._project}&mode=admin')
+        except:
+            pass
 
     '''清理log'''
     for logfile in getFiles('system_update', '.log'):
