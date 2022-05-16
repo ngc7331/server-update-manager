@@ -5,7 +5,7 @@ import json
 import logging
 from modules.API import API
 from modules.const import *
-from modules.color import Green
+from modules.color import *
 from modules.Logger import Logger, getLogger
 from modules.popen import popen
 import os
@@ -166,7 +166,7 @@ def main() -> None:
         return None
     if not waitUntil(api.checkAuthorization, WAIT_HOLD, logger):
         api.error('Not authorize with 24 hours')
-        logger.critical('Not authorize with 24 hours, exit...')
+        logger.critical(Red('Not authorize with 24 hours, exit...'))
         return None
     aptHold()
     if not aptUpgrade():
@@ -174,7 +174,7 @@ def main() -> None:
         return None
     if not waitUntil(api.checkAuthorization, WAIT_AUTOREMOVE, logger):
         api.error('Not authorize with 24 hours')
-        logger.critical('Not authorize with 24 hours, exit...')
+        logger.critical(Red('Not authorize with 24 hours, exit...'))
         return None
     aptAutoremove()
     logger.info('All done! exit...')
@@ -187,7 +187,7 @@ if __name__ == '__main__':
         with open('system_update/conf.json', 'r') as f:
             conf = json.load(f)
     except FileNotFoundError as e:
-        logging.critical(e)
+        logging.critical(Red(e))
         sys.exit()
 
     '''初始化logger'''
@@ -206,19 +206,19 @@ if __name__ == '__main__':
     logger.info('Check environment...')
     try:
         if os.geteuid() != 0:
-            logger.critical('This script must be run as root, exit...')
+            logger.critical(Red('This script must be run as root, exit...'))
             sys.exit()
     except AttributeError:
-        logger.critical('This script must be run in Linux, exit...')
+        logger.critical(Red('This script must be run in Linux, exit...'))
         sys.exit()
 
     '''lock'''
     pid = checkLock()
     if pid:
-        logger.warning(f'Another upgrade process appears to be running, pid: {pid}')
-        logger.warning('wait until lock is released...')
+        logger.warning(f'Another upgrade process appears to be running, pid: {Yellow(pid)}')
+        logger.warning(Yellow('wait until lock is released...'))
         if not waitUntil(checkLock, 0, logger, max_retries=12):
-            logger.critical('Max retries exceeded, exit...')
+            logger.critical(Red('Max retries exceeded, exit...'))
             sys.exit()
     with open('system_update.lock', 'w') as f:
         f.write(str(os.getpid()))
@@ -229,21 +229,21 @@ if __name__ == '__main__':
         api = API(conf, logger)
         api.init()
     except Exception as e:
-        logger.critical(e.__str__())
+        logger.critical(Red(e.__str__()))
     else:
         '''更新'''
         progs = []
         try:
             main()
         except Exception as e:
-            logger.critical(e.__str__())
+            logger.critical(Red(e.__str__()))
 
         '''上传log'''
-        log_id = api.upload(logfile)['$id']
         try:
+            log_id = api.upload(logfile)['$id']
             api.post(log = f'{api._endpoint}/storage/buckets/{api._bucket}/files/{log_id}/view?project={api._project}&mode=admin')
         except:
-            pass
+            logger.warning(Yellow('Failed to upload log file'))
 
     '''清理log'''
     for logfile in getFiles('system_update', '.log'):
