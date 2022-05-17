@@ -19,7 +19,7 @@ class Logger(logging.Logger):
                 os.mkdir(logdir)
             if (logfile is None):
                 logfile = os.path.join(logdir, '%s.log' % time.strftime('%Y%m%d%H%M', time.localtime(time.time())))
-            self._filehandler = logging.FileHandler(logfile, 'w')
+            self._filehandler = logging.FileHandler(logfile, 'w', encoding='gbk')
             self._filehandler.setLevel(logging.INFO)
             self._filehandler.setFormatter(formatter)
             self.addHandler(self._filehandler)
