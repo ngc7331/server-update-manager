@@ -1,6 +1,6 @@
 一个基于[Appwrite](https://appwrite.io/)、Python3、Vue.js的服务器更新管理器
 
-目前使用的appwrite版本为**0.13.4.304**，不同版本间可能存在兼容性问题，0.10版本可以使用[Initial commit](https://github.com/ngc7331/server-update-manager/commit/a61dd1260cbd8d036843f3d81518208f88c5154d)提交的版本。
+目前使用的appwrite版本为**0.14.2.305**，不同版本间可能存在兼容性问题，0.10版本可以使用[Initial commit](https://github.com/ngc7331/server-update-manager/commit/a61dd1260cbd8d036843f3d81518208f88c5154d)提交的版本，其它旧版本请查看tags。
 
 ***仅仅是个人写着玩的项目，可能存在严重的安全性问题，请谨慎使用。如果您愿意，请指教***
 
@@ -99,6 +99,7 @@ export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 3. 尝试运行`python3 system_update.py`
 
 ## Changelog
+- 2022.05.27 更新appwrite至**0.14.2.305**，python sdk 0.9.0，web sdk 0.8.1
 - 2022.05.16 部分代码重构，更新appwrite至**0.13.4.304**，自动移除7天以前的log
 - 2022.02.20 更新client初始化逻辑，加入锁机制
 - 2022.02.10 修改状态表示，优化错误处理
