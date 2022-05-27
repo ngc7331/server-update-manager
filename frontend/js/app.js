@@ -1,7 +1,3 @@
-/*
-version 2022.02.10.1
-*/
-
 import { ENDPOINT, PROJECT_ID, COLLECTION_ID } from './conf.js'
 
 function isNull(v) {
@@ -115,7 +111,7 @@ Vue.createApp({
             let promise = app.sdk.database.listDocuments(COLLECTION_ID);
             promise.then(function (response) {
                 console.log(response);
-                for (var i=0; i<response.sum; i++) {
+                for (var i=0; i<response.total; i++) {
                     var doc = response.documents[i];
                     var progs = [];
                     for (var j=0; j<doc.progs.length; j++) {
@@ -137,7 +133,7 @@ Vue.createApp({
                         "error": doc.error
                     });
                 }
-                app.documents= documents;
+                app.documents = documents;
             }, function (error) {
                 Swal.fire('Unknown Appwrite Error', error.message, 'error');
                 console.log(error); // Failure
