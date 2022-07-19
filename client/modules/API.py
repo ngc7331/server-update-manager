@@ -3,6 +3,7 @@ version 2022.07.19.1
 '''
 from appwrite.client import Client
 from appwrite.services.databases import Databases
+from appwrite.input_file import InputFile
 from appwrite.services.storage import Storage
 from modules.color import Green
 from modules.const import *
@@ -96,7 +97,7 @@ class API():
         if not os.path.exists(filepath):
             return None
         return self._storage.create_file(
-            self._bucket, 'unique()', filepath,
+            self._bucket, 'unique()', InputFile.from_path(filepath),
             self._permission, self._permission
         )
     def listFiles(self) -> list:

@@ -1,5 +1,5 @@
 '''
-version 2022.05.16.1 dev
+version 2022.07.19.1
 '''
 import json
 import logging
@@ -242,7 +242,7 @@ if __name__ == '__main__':
         try:
             for f in api.listFiles():
                 if f['name'].startswith(api.name):
-                    if time.time() - f['dateCreated'] > 86400 * 7:
+                    if time.time() - f['$createdAt'] > 86400 * 7:
                         api.deleteFile(f['$id'])
         except Exception as e:
             logger.warning(Yellow('Failed to clean up remote log files') + e.__str__())
