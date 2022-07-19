@@ -1,4 +1,4 @@
-import { ENDPOINT, PROJECT_ID, COLLECTION_ID } from './conf.js'
+import { ENDPOINT, PROJECT_ID, DATABASE_ID, COLLECTION_ID } from './conf.js'
 
 function isNull(v) {
     if (v===null || v === 'null') return true;
@@ -28,15 +28,24 @@ Vue.createApp({
     },
     mounted() {
         var app = this;
-        const sdk = new Appwrite();
-        sdk
-            .setEndpoint(ENDPOINT)
-            .setProject(PROJECT_ID);
-        this.sdk = sdk;
-        if (isNull(localStorage.getItem('appwrite_save_session'))) this.save_session = true;
-        else this.save_session = localStorage.getItem('appwrite_save_session');
-        this.session_id = localStorage.getItem('appwrite_session_id');
-        this.getSession();
+        const client = new Appwrite.Client();
+        client
+        .setEndpoint(ENDPOINT)
+        .setProject(PROJECT_ID);
+        app.client = client;
+
+        const account = new Appwrite.Account(client);
+        app.account = account;
+
+        const db = new Appwrite.Databases(client, DATABASE_ID);
+        app.db = db;
+
+        if (isNull(localStorage.getItem('appwrite_save_session'))) app.save_session = true;
+        else app.save_session = localStorage.getItem('appwrite_save_session');
+        app.session_id = localStorage.getItem('appwrite_session_id');
+
+        app.getSession();
+
         window.setInterval(function(){
             if (app.loggedin && app.autorefresh) app.refreshDocuments();
         }, 10000);
@@ -62,7 +71,7 @@ Vue.createApp({
     methods: {
         createSession() {
             var app = this;
-            let promise = app.sdk.account.createSession(app.email, app.password);
+            let promise = app.account.createEmailSession(app.email, app.password);
             promise.then(function (response) {
                 app.session_id = response.$id;
                 app.loggedin = true;
@@ -74,7 +83,7 @@ Vue.createApp({
         deleteSession() {
             var app = this;
             app.documents = [];
-            let promise = app.sdk.account.deleteSession(app.session_id);
+            let promise = app.account.deleteSession(app.session_id);
             promise.then(function (response) {
                 app.session_id = null;
                 app.loggedin = false;
@@ -91,7 +100,7 @@ Vue.createApp({
             var app = this;
             if (!isNull(app.session_id)) {
                 console.log('Trying to log in with saved session_id');
-                let promise = app.sdk.account.getSession(app.session_id);
+                let promise = app.account.getSession(app.session_id);
                 promise.then(function (response) {
                     app.loggedin = true;
                 }, function (error) {
@@ -108,7 +117,7 @@ Vue.createApp({
         refreshDocuments() {
             var app = this;
             var documents = [];
-            let promise = app.sdk.database.listDocuments(COLLECTION_ID);
+            let promise = app.db.listDocuments(COLLECTION_ID);
             promise.then(function (response) {
                 console.log(response);
                 for (var i=0; i<response.total; i++) {
@@ -150,7 +159,7 @@ Vue.createApp({
                     "progs": stringify(doc.progs)
                 };
                 //delete document.id;
-                let promise = app.sdk.database.updateDocument(COLLECTION_ID, id, document);
+                let promise = app.db.updateDocument(COLLECTION_ID, id, document);
                 promise.then(function (response) {
                     console.log(response); // Success
                 }, function (error) {

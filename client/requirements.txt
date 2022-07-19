@@ -1,1 +1,1 @@
-appwrite==0.9.0
+appwrite==0.10.0
