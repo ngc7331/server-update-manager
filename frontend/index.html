@@ -24,8 +24,7 @@
                 </ul>
             </div>
             <div id="listbox">
-                <button v-on:click="refreshDocuments" v-bind:disabled="!loggedin">Refresh</button>
-                Autorefresh: <input type="checkbox" v-model="autorefresh" v-bind:disabled="!loggedin">
+                <button v-on:click="refreshDocuments" v-bind:disabled="!loggedin">Manual Refresh</button>
                 <button v-on:click="saveDocument" v-bind:disabled="!loggedin">Save</button>
                 <table id="list">
                     <tr><th width="10%">Name</th><th width="20%">Time</th><th width="5%">Authorize?</th><th>Status</th></tr>

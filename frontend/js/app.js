@@ -21,17 +21,15 @@ Vue.createApp({
             loggedin: false,
             session_id: null,
             save_session: true,
-            autorefresh: true,
-            documents: [],
+            documents: {},
+            unsubscribe: null,
             proc_msg: ["update", "hold", "upgrade", "autoremove"]
         }
     },
     mounted() {
         var app = this;
         const client = new Appwrite.Client();
-        client
-        .setEndpoint(ENDPOINT)
-        .setProject(PROJECT_ID);
+        client.setEndpoint(ENDPOINT).setProject(PROJECT_ID);
         app.client = client;
 
         const account = new Appwrite.Account(client);
@@ -46,15 +44,12 @@ Vue.createApp({
 
         app.getSession();
 
-        window.setInterval(function(){
-            if (app.loggedin && app.autorefresh) app.refreshDocuments();
-        }, 10000);
+        app.refreshDocuments();
     },
     watch: {
         loggedin() {
             if (this.loggedin) {
                 Swal.fire('Success', 'logged in, session_id='+this.session_id, 'success');
-                this.refreshDocuments();
             }
             else Swal.fire('Success', 'logged out', 'success');
         },
@@ -82,7 +77,13 @@ Vue.createApp({
         },
         deleteSession() {
             var app = this;
-            app.documents = [];
+            if (!app.loggedin) return ;
+            app.documents = {};
+
+            if (app.unsubscribe != null)
+                app.unsubscribe();
+            app.unsubscribe = null;
+
             let promise = app.account.deleteSession(app.session_id);
             promise.then(function (response) {
                 app.session_id = null;
@@ -114,52 +115,64 @@ Vue.createApp({
                 console.log('Not trying to log in session since session_id is null');
             }
         },
+        parseDocument(doc) {
+            var progs = [];
+            for (var j=0; j<doc.progs.length; j++) {
+                var prog = JSON.parse(doc.progs[j])
+                progs.push({
+                    "name": prog.name,
+                    "hold": prog.hold,
+                    "version": prog.version
+                });
+            }
+            return {
+                "id": doc.$id,
+                "name": doc.name,
+                "time": doc.time,
+                "status": doc.status,
+                "progs": progs,
+                "msg": doc.msg,
+                "log": doc.log,
+                "error": doc.error
+            }
+        },
         refreshDocuments() {
             var app = this;
-            var documents = [];
+
+            if (app.unsubscribe != null)
+                app.unsubscribe();
+
+            app.documents = {};
             let promise = app.db.listDocuments(COLLECTION_ID);
             promise.then(function (response) {
                 console.log(response);
                 for (var i=0; i<response.total; i++) {
                     var doc = response.documents[i];
-                    var progs = [];
-                    for (var j=0; j<doc.progs.length; j++) {
-                        var prog = JSON.parse(doc.progs[j])
-                        progs.push({
-                            "name": prog.name,
-                            "hold": prog.hold,
-                            "version": prog.version
-                        });
-                    }
-                    documents.push({
-                        "id": doc.$id,
-                        "name": doc.name,
-                        "time": doc.time,
-                        "status": doc.status,
-                        "progs": progs,
-                        "msg": doc.msg,
-                        "log": doc.log,
-                        "error": doc.error
-                    });
+                    app.documents[doc.$id] = app.parseDocument(doc);
                 }
-                app.documents = documents;
             }, function (error) {
                 Swal.fire('Unknown Appwrite Error', error.message, 'error');
                 console.log(error); // Failure
             });
+
+            app.unsubscribe = app.client.subscribe(`databases.${DATABASE_ID}.collections.${COLLECTION_ID}.documents`, response => {
+                console.log(response);
+                if (response.events[1] === 'databases.*.collections.*.documents.*.delete')
+                    delete app.documents[response.payload.$id];
+                else
+                    app.documents[response.payload.$id] = app.parseDocument(response.payload);
+            })
         },
         saveDocument() {
             var app = this;
             var error_occured = false;
-            for(var i=0; i<app.documents.length; i++) {
-                var doc = app.documents[i];
-                var id = doc.id;
+            for(var key in app.documents) {
+                var doc = app.documents[key];
                 var document = {
                     "status": doc.status,
                     "progs": stringify(doc.progs)
                 };
-                //delete document.id;
-                let promise = app.db.updateDocument(COLLECTION_ID, id, document);
+                let promise = app.db.updateDocument(COLLECTION_ID, key, document);
                 promise.then(function (response) {
                     console.log(response); // Success
                 }, function (error) {

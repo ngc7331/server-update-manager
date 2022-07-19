@@ -1,10 +1,9 @@
 
-.vscode/launch.json
+.vscode
 
 client/modules/__pycache__
 client/system_update/conf.json
 client/system_update/conf-old.json
-client/system_update/*.log
 
 frontend/js/conf.js
 frontend/js/conf-old.js
@@ -12,3 +11,7 @@ frontend/js/conf-old.js
 test.js
 test.py
 test_server.py
+
+*.log
+*.tmp
+*.lock
