@@ -2,6 +2,7 @@
     "bucket": "",
     "client_name": "",
     "collection": "",
+    "database": "",
     "endpoint": "",
     "key": "",
     "permission": ["user:"],

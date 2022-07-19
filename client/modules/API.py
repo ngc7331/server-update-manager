@@ -1,8 +1,8 @@
 '''
-version 2022.05.16.1 dev
+version 2022.07.19.1
 '''
 from appwrite.client import Client
-from appwrite.services.database import Database
+from appwrite.services.databases import Databases
 from appwrite.services.storage import Storage
 from modules.color import Green
 from modules.const import *
@@ -16,6 +16,7 @@ class API():
         # Load conf
         self.name = conf['client_name']
         self._bucket = conf['bucket']
+        self._database_id = conf['database']
         self._collection_id = conf['collection']
         self._endpoint = conf['endpoint']
         self._key = conf['key']
@@ -29,11 +30,11 @@ class API():
         self._client.set_endpoint(self._endpoint)\
             .set_project(self._project)\
             .set_key(self._key)
-        self._database = Database(self._client)
+        self._db = Databases(self._client, self._database_id)
         self._storage = Storage(self._client)
 
         # Get document id
-        result = self._database.list_documents(self._collection_id)
+        result = self._db.list_documents(self._collection_id)
         clients = {}
         for client in result['documents']:
             clients.update({client['name']: client['$id']})
@@ -48,13 +49,13 @@ class API():
         if 'time' not in data:
             data.update(time = time.strftime('%Y-%m-%d %H:%M:%S %Z', time.localtime(time.time())))
         if self._document_id is not None:
-            return self._database.update_document(
+            return self._db.update_document(
                 self._collection_id, self._document_id, data,
                 self._permission, self._permission
             )
         else:
             data.update(name = self.name)
-            result = self._database.create_document(
+            result = self._db.create_document(
                 self._collection_id, 'unique()', data,
                 self._permission, self._permission
             )
@@ -64,7 +65,7 @@ class API():
         '''Remove document from collection'''
         if self._document_id is None:
             return None
-        result = self._database.delete_document(
+        result = self._db.delete_document(
             self._collection_id, self._document_id
         )
         self._document_id = None
@@ -88,7 +89,7 @@ class API():
         self.post(status = FATAL, error = True, msg = msg)
 
     def checkAuthorization(self) -> int:
-        document = self._database.get_document(self._collection_id, self._document_id)
+        document = self._db.get_document(self._collection_id, self._document_id)
         return document['status']
 
     def upload(self, filepath:str):
