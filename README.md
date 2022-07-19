@@ -56,7 +56,8 @@
 ### 配置appwrite
 1. 登录到appwrite
 2. 创建项目，项目ID和名称任取（安全起见，ID建议使用默认的`auto-generated`，下同）。记住项目ID。进入后在`Home-Platforms`中新建Web APP，名称任填，Hostname填写前端域名（不是appwrite的域名）。
-3. 在`Develop-Database-Collections`中新建Collection，ID和名称任取。记住`Collection ID`。随后在`Collection-Attributes`中添加以下项目：
+3. 在`Develop-Database`中新建Database，ID和名称任取。记住`Database ID`。
+4. 进入刚刚新建的Database，新建Collection，ID和名称任取。记住`Collection ID`。随后在`Collection-Attributes`中添加以下项目：
     | Attribute ID | Type |
     | ------------ | ---- |
     | status | integer |
@@ -66,9 +67,9 @@
     | msg | string |
     | progs | string[] |
     | log | string(url) |
-4. 在`Develop-Users`中新建用户，ID、名称、邮箱和密码均任意设置，该邮箱和密码用于前端登录，请保证其具备一定的复杂度。记住用户ID。
-5. 在`Storage`中新建Bucket，ID、名称任意
-6. 在`Manage-API Keys`中新建API Key，名称任取，授予以下权限。创建后点击show secret记住生成的API Key：
+5. 在`Develop-Users`中新建用户，ID、名称、邮箱和密码均任意设置，该邮箱和密码用于前端登录，请保证其具备一定的复杂度。记住用户ID。
+6. 在`Storage`中新建Bucket，ID、名称任意
+7. 在`Manage-API Keys`中新建API Key，名称任取，授予以下权限。创建后点击show secret记住生成的API Key：
     - `collections.read`
     - `documents.read`
     - `documents.write`
@@ -80,18 +81,20 @@
 ```
 export const ENDPOINT = ""       // appwrite的API endpoint地址，类似于"https://<hostname>/v1"
 export const PROJECT_ID = ""     // 配置appwrite第2步设置的项目ID
-export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
+export const DATABASE_ID = ""    // 配置appwrite第3步设置的DATABASE ID
+export const COLLECTION_ID = ""  // 配置appwrite第4步设置的Collection ID
 ```
 2. 尝试访问
 
 ### 配置客户端
 1. 将client文件夹的内容复制到需要被管理的linux系统上，将`system_update/conf-template.json`复制到`system_update/conf.json`，并填入
 ```
-"bucket": "",             // 配置appwrite第5步设置的Bucket ID
+"bucket": "",             // 配置appwrite第6步设置的Bucket ID
 "client_name": "",        // 客户端名称，任意设置
-"collection": "",         // 配置appwrite第3步设置的Collection ID
+"collection": "",         // 配置appwrite第4步设置的Collection ID
+"database": "",           // 配置appwrite第3步设置的Database ID
 "endpoint": "",           // appwrite的API endpoint地址，类似于"https://<hostname>/v1"
-"key": "",                // 配置appwrite第6步生成的API key
+"key": "",                // 配置appwrite第7步生成的API key
 "permission": ["user:"],  // 在user:后面填入配置appwrite第4步设置的用户ID
 "project": ""             // 配置appwrite第2步设置的项目ID
 ```
@@ -99,7 +102,7 @@ export const COLLECTION_ID = ""  // 配置appwrite第3步设置的Collection ID
 3. 尝试运行`python3 system_update.py`
 
 ## Changelog
-- 2022.07.19 更新appwrite至**0.15.2.402**，python sdk 0.10.0，web sdk 0.9.1
+- 2022.07.19 更新appwrite至**0.15.2.402**，python sdk 0.10.0，web sdk 0.9.1，**前后端配置文件有变化**
 - 2022.05.27 更新appwrite至**0.14.2.305**，python sdk 0.9.0，web sdk 0.8.1
 - 2022.05.16 部分代码重构，更新appwrite至**0.13.4.304**，自动移除7天以前的log
 - 2022.02.20 更新client初始化逻辑，加入锁机制
